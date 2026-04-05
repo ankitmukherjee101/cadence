@@ -8,7 +8,18 @@ Monorepo layout:
 | `services/api` | FastAPI (Python) | Agent API, Deepgram relay, Groq, LangGraph (to be wired) |
 | `supabase/migrations` | SQL | Postgres + pgvector + RLS |
 
-Product and build plan live in [`.docs/App Design and features.md`](.docs/App%20Design%20and%20features.md) and [`.docs/Implementation Plan.md`](.docs/Implementation%20Plan.md).
+Product and build plan live in [`.docs/App Design and features.md`](.docs/App%20Design%20and%20features.md) and [`.docs/Implementation Plan.md`](.docs/Implementation%20Plan.md). The Implementation Plan includes a short **project status** section that is updated as work progresses.
+
+## Environment variables
+
+Keep **secrets out of Git**. Only `.env.example` files are committed.
+
+| Location | Variables | Notes |
+|----------|-----------|--------|
+| `apps/mobile/.env` | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, optional `EXPO_PUBLIC_API_URL` | Public client key only (anon / publishable). Never Groq, Deepgram, Neo4j, or `service_role`. Restart Expo after changes. |
+| `services/api/.env` | `GROQ_API_KEY`, `DEEPGRAM_API_KEY`, `NEO4J_URI`, `NEO4J_USERNAME` or `NEO4J_USER`, `NEO4J_PASSWORD`, optional `SUPABASE_*`, `CORS_ORIGINS`, optional Aura metadata in `.env.example` | Server-side only. Restart uvicorn after changes (`get_settings()` is cached on startup). |
+
+**Production (Fly.io):** set the API variables with `fly secrets set` from `services/api` (see below). Do not bake secrets into the mobile app binary.
 
 ## Prerequisites
 
@@ -24,23 +35,37 @@ npm install
 npm run start
 ```
 
-Copy `apps/mobile/.env.example` to `apps/mobile/.env` and fill Supabase + API URL when ready.
+Copy `apps/mobile/.env.example` to `apps/mobile/.env` and fill Supabase + optional API URL.
 
-**Expo vs Next.js:** This app is **not** Next.js. Do not add `@supabase/ssr`, `middleware.ts`, or `NEXT_PUBLIC_*`. The client lives in `apps/mobile/lib/supabase.ts` and uses **AsyncStorage** so sessions persist and refresh on device.
+**Expo vs Next.js:** This app is **not** Next.js. Do not add `@supabase/ssr`, `middleware.ts`, or Next-style cookie middleware. Use `apps/mobile/lib/supabase.ts` (**AsyncStorage** for session persistence).
+
+**Temporary dev check:** `App.tsx` runs a quick Supabase check (`getSession` + `profiles` query). Remove or replace it when you add real navigation and auth.
 
 ## API (local)
 
 ```powershell
 cd services\api
 python -m venv .venv
-.\.venv\Scripts\Activate
+# PowerShell: .\.venv\Scripts\Activate.ps1   |  cmd.exe: .venv\Scripts\activate.bat
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env
-# Edit .env — optional for /health only
+# Edit .env (see Environment variables above)
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8080
 ```
 
 Open [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs).
+
+**Smoke-test Groq / Deepgram / Neo4j** (uses `services/api/.env`):
+
+```powershell
+cd services\api
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python scripts\check_connections.py
+```
+
+Each line prints `OK`, `FAIL` (with error), or `SKIP` if the related env vars are empty.
 
 ## API (Docker)
 
@@ -62,11 +87,11 @@ docker run --rm -p 8080:8080 -e PORT=8080 cadence-api
 1. Install `flyctl` and log in: `fly auth login`.
 2. From `services/api`, create the app once (unique name): `fly apps create cadence-api-yourname`.
 3. Set `app` in `fly.toml` to that name.
-4. Set secrets (example):
+4. Set secrets (example — align with `services/api/.env.example`):
 
    ```powershell
    cd services\api
-   fly secrets set SUPABASE_URL=... SUPABASE_JWT_SECRET=... GROQ_API_KEY=... DEEPGRAM_API_KEY=... CORS_ORIGINS=https://your-app.example
+   fly secrets set SUPABASE_URL=... SUPABASE_JWT_SECRET=... GROQ_API_KEY=... DEEPGRAM_API_KEY=... NEO4J_URI=... NEO4J_USERNAME=... NEO4J_PASSWORD=... CORS_ORIGINS=https://your-app.example
    ```
 
 5. Deploy: `fly deploy`.
@@ -75,8 +100,17 @@ docker run --rm -p 8080:8080 -e PORT=8080 cadence-api
 
 ## Neo4j Aura
 
-Create a free database at [neo4j.com/cloud](https://neo4j.com/cloud/), then add `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` to `services/api/.env` / Fly secrets when graph ingestion is implemented.
+Create a free database at [neo4j.com/cloud](https://neo4j.com/cloud/). Put **`NEO4J_URI`** (e.g. `neo4j+s://…`), **`NEO4J_USERNAME`** (or **`NEO4J_USER`**), and **`NEO4J_PASSWORD`** in `services/api/.env` and in Fly secrets for production. The Python API does not open a Neo4j connection until graph ingestion is implemented.
+
+**Neo4j (Aura) connection issues:**
+
+- **Routing:** “Unable to retrieve routing information” — use the **Neo4j URI** from Aura (`neo4j+s://….databases.neo4j.io`), not a browser URL. If routing keeps failing, try **`bolt+s://`** with the same host; `scripts/check_connections.py` retries with `bolt+s` after a routing error.
+- **Neo4j driver + `ssl_context`:** With **`neo4j+s://`** / **`bolt+s://`**, the official driver **does not allow** passing **`ssl_context`** (encryption is defined by the URI). The check script sets **`SSL_CERT_FILE`** to **`certifi`**’s CA bundle before connecting so OpenSSL can still verify Aura’s certificate on Windows. Run `pip install -r requirements.txt` and `pip install -U certifi` in `.venv`. If TLS still fails, try a **different network** (e.g. phone hotspot).
 
 ## Groq and Deepgram
 
-Add API keys to `services/api/.env` locally and to Fly secrets in production. Do not put these keys in the Expo app; the mobile client should only talk to your API and Supabase (anon key).
+Keys live in **`services/api/.env`** (local) and **Fly secrets** (deployed). The mobile app must never embed them; Expo only uses the Supabase public key and your API base URL when those features exist.
+
+## Supabase CLI
+
+**Optional.** You can keep applying SQL from `supabase/migrations/*.sql` via the **Supabase Dashboard → SQL Editor**. Install the [Supabase CLI](https://supabase.com/docs/guides/cli) when you want `supabase link`, `db push`, or `gen types`.

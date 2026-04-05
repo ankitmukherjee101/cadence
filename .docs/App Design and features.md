@@ -8,13 +8,14 @@ It's a stateful AI agent that lives on your phone. It understands the messy way 
 ## Tech Stack
 
 - React Native (Expo)
-	- Access to haptics, whisper (voice), and push notifications
-- Orchestration: Langraph
+	- Access to haptics, voice (STT via **Deepgram** through the Python API), and push notifications
+- Orchestration: **LangGraph**
 - Primary DB: Supabase (PostgreSQL)
 - Vector Engine: pgvector (for semantic search across old journal entries)
 - Brain: Neo4j (GraphDB)
 	- maps correlations (e.g. strength training -> mood: high -> focus: 1 hour)
-- Groq (Llama 3.1 70B) Ultra-low latency is required for a snappy chat experience
+- Groq (Llama 3.1 70B) — ultra-low latency for a snappy chat experience
+- Python **FastAPI** service (agent, STT relay); **Fly.io** recommended for hosting the API (optional for local-only dev)
 
 ## AI Pipeline: 
 
@@ -31,11 +32,11 @@ It's a stateful AI agent that lives on your phone. It understands the messy way 
 - "How does my sleep duration on Sunday nights affect my lifting performance on Monday afternoons?"
 
 ### Active feedback loop
-- If the input is ambiguous, Langraph agent triggers a follow up. 
+- If the input is ambiguous, the **LangGraph** agent triggers a follow-up. 
 
 ## Mobile architecture and UX:
 
-- Voice-first interface: Large "Record" button that streams audio to OpenAI Whisper. Transcript appears in real time as the user speaks
+- Voice-first interface: large **Record** control; audio streams through the **API** to **Deepgram**; transcript updates in real time as the user speaks
 - Haptic affirmations: "tick" sensation when the AI successfully parses an entry. 
 - Home screen widget that displays a rhythm score, summarizing the AI's current understanding of your day
 

@@ -12,6 +12,20 @@ This document turns the vision in [App Design and features](./App%20Design%20and
 
 ---
 
+## Project status (living)
+
+Update this table when milestones land so the plan stays aligned with the repo.
+
+| Area | State |
+|------|--------|
+| **Layout** | Monorepo: `apps/mobile` (Expo), `services/api` (FastAPI), `supabase/migrations` (SQL source of truth). |
+| **Mobile** | Supabase client in `lib/supabase.ts` (`@supabase/supabase-js` + AsyncStorage). `App.tsx` includes a **temporary** connectivity check against `profiles`; remove when real UI + auth exist. |
+| **Supabase** | Cloud project; run `20260404120000_initial_schema.sql` via SQL Editor (or CLI). Tables: `profiles`, `entries`, `entry_embeddings` (+ pgvector). **Supabase CLI is optional.** |
+| **API** | FastAPI with `/health`, `/docs`; `services/api/.env` holds **Groq**, **Deepgram**, **Neo4j** (and later Supabase JWT validation). No LLM/STT/graph routes wired yet. |
+| **Deploy** | `Dockerfile` + `fly.toml` in `services/api`; Fly deploy is optional until you need a public API URL. |
+
+---
+
 ## Phase 0 — Product, UX, and technical foundations
 
 **Goal:** Freeze scope for MVP, define contracts, and avoid rework.
