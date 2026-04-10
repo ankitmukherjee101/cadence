@@ -25,6 +25,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "scheme": "cadence",
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

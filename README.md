@@ -39,7 +39,7 @@ Copy `apps/mobile/.env.example` to `apps/mobile/.env` and fill Supabase + option
 
 **Expo vs Next.js:** This app is **not** Next.js. Do not add `@supabase/ssr`, `middleware.ts`, or Next-style cookie middleware. Use `apps/mobile/lib/supabase.ts` (**AsyncStorage** for session persistence).
 
-**Temporary dev check:** `App.tsx` runs a quick Supabase check (`getSession` + `profiles` query). Remove or replace it when you add real navigation and auth.
+**Signed-in dev check:** `apps/mobile/app/index.tsx` runs a quick `profiles` query after login. Replace with real home when you build the shell UI.
 
 ## API (local)
 
