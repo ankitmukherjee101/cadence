@@ -1,0 +1,87 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
+
+/**
+ * Phase 0 migrations run as ordered SQL statements.
+ * Never edit a shipped migration — append a new version instead.
+ */
+const MIGRATIONS: { version: number; statements: string[] }[] = [
+  {
+    version: 1,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS habits (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        schedule_json TEXT NOT NULL,
+        color TEXT,
+        archived_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );`,
+      `CREATE TABLE IF NOT EXISTS habit_logs (
+        id TEXT PRIMARY KEY NOT NULL,
+        habit_id TEXT NOT NULL REFERENCES habits(id),
+        date TEXT NOT NULL,
+        status TEXT NOT NULL,
+        completed_at TEXT,
+        note TEXT
+      );`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS habit_logs_habit_date_uidx
+        ON habit_logs(habit_id, date);`,
+      `CREATE INDEX IF NOT EXISTS idx_habit_logs_date ON habit_logs(date);`,
+      `CREATE TABLE IF NOT EXISTS tags (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL UNIQUE,
+        color TEXT
+      );`,
+      `CREATE TABLE IF NOT EXISTS time_sessions (
+        id TEXT PRIMARY KEY NOT NULL,
+        label TEXT NOT NULL,
+        tag_id TEXT REFERENCES tags(id),
+        habit_id TEXT REFERENCES habits(id),
+        started_at TEXT NOT NULL,
+        ended_at TEXT,
+        notes TEXT
+      );`,
+      `CREATE INDEX IF NOT EXISTS idx_time_sessions_started ON time_sessions(started_at);`,
+      `CREATE TABLE IF NOT EXISTS journal_entries (
+        id TEXT PRIMARY KEY NOT NULL,
+        date TEXT NOT NULL,
+        title TEXT,
+        body TEXT NOT NULL,
+        mood INTEGER,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );`,
+      `CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date);`,
+    ],
+  },
+];
+
+async function getUserVersion(sqlite: SQLiteDatabase): Promise<number> {
+  const row = await sqlite.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  return row?.user_version ?? 0;
+}
+
+async function setUserVersion(sqlite: SQLiteDatabase, version: number): Promise<void> {
+  await sqlite.execAsync(`PRAGMA user_version = ${version}`);
+}
+
+export async function migrate(sqlite: SQLiteDatabase): Promise<void> {
+  const current = await getUserVersion(sqlite);
+
+  for (const migration of MIGRATIONS) {
+    if (migration.version <= current) continue;
+
+    await sqlite.execAsync('BEGIN');
+    try {
+      for (const statement of migration.statements) {
+        await sqlite.execAsync(statement);
+      }
+      await setUserVersion(sqlite, migration.version);
+      await sqlite.execAsync('COMMIT');
+    } catch (error) {
+      await sqlite.execAsync('ROLLBACK');
+      throw error;
+    }
+  }
+}
