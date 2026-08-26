@@ -1,5 +1,5 @@
-import { TodayScreen } from '@/src/features/day';
+import { HabitsScreen } from '@/src/features/habits';
 
-export default function TodayRoute() {
-  return <TodayScreen />;
+export default function HabitsTab() {
+  return <HabitsScreen />;
 }

@@ -1,71 +1,87 @@
 import { SymbolView } from 'expo-symbols';
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { useRunningSession } from '@/src/features/habits/hooks';
+import { ActiveSessionBar } from '@/src/shared/ui/ActiveSessionBar';
+import { JournalPromptSheet } from '@/src/shared/ui/JournalPromptSheet';
+import { colors } from '@/src/shared/ui/tokens';
+
+const TAB_BAR_BASE = 49;
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
+  const { data: running } = useRunningSession();
+  const sessionBarHeight = running ? 44 : 0;
+  const tabBarHeight = TAB_BAR_BASE + insets.bottom;
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: useClientOnlyValue(false, true),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Today',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'sun.max', android: 'wb_sunny', web: 'wb_sunny' }}
-              tintColor={color}
-              size={26}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="habits"
-        options={{
-          title: 'Habits',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'checkmark.circle', android: 'check_circle', web: 'check_circle' }}
-              tintColor={color}
-              size={26}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="time"
-        options={{
-          title: 'Time',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'timer', android: 'timer', web: 'timer' }}
-              tintColor={color}
-              size={26}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="journal"
-        options={{
-          title: 'Journal',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'book', android: 'menu_book', web: 'menu_book' }}
-              tintColor={color}
-              size={26}
-            />
-          ),
-        }}
-      />
-    </Tabs>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: Colors.dark.tint,
+          tabBarInactiveTintColor: Colors.dark.tabIconDefault,
+          headerShown: false,
+          tabBarStyle: {
+            height: tabBarHeight,
+            paddingBottom: insets.bottom,
+            backgroundColor: colors.surface,
+            borderTopColor: colors.borderSubtle,
+            borderTopWidth: 0.5,
+          },
+          sceneStyle: {
+            paddingBottom: sessionBarHeight,
+            backgroundColor: colors.background,
+          },
+        }}>
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Habits',
+            tabBarIcon: ({ color }) => (
+              <SymbolView
+                name={{ ios: 'checkmark.circle', android: 'check_circle', web: 'check_circle' }}
+                tintColor={color}
+                size={26}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="analytics"
+          options={{
+            title: 'Analytics',
+            tabBarIcon: ({ color }) => (
+              <SymbolView
+                name={{ ios: 'chart.bar', android: 'bar_chart', web: 'bar_chart' }}
+                tintColor={color}
+                size={26}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="journal"
+          options={{
+            title: 'Journal',
+            tabBarIcon: ({ color }) => (
+              <SymbolView
+                name={{ ios: 'book', android: 'menu_book', web: 'menu_book' }}
+                tintColor={color}
+                size={26}
+              />
+            ),
+          }}
+        />
+      </Tabs>
+      {running ? (
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: tabBarHeight }}>
+          <ActiveSessionBar />
+        </View>
+      ) : null}
+      <JournalPromptSheet />
+    </View>
   );
 }

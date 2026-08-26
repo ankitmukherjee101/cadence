@@ -1,1 +1,1 @@
-export { TimeScreen } from './screens/TimeScreen';
+export { ActiveSessionScreen } from './screens/ActiveSessionScreen';

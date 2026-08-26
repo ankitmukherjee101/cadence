@@ -55,6 +55,32 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date);`,
     ],
   },
+  {
+    version: 2,
+    statements: [
+      `ALTER TABLE habits ADD COLUMN icon TEXT NOT NULL DEFAULT '✨';`,
+      `ALTER TABLE habits ADD COLUMN category TEXT;`,
+      `ALTER TABLE habits ADD COLUMN timer_mode TEXT NOT NULL DEFAULT 'stopwatch';`,
+      `ALTER TABLE habits ADD COLUMN pomodoro_minutes INTEGER NOT NULL DEFAULT 25;`,
+      `ALTER TABLE time_sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'stopwatch';`,
+      `ALTER TABLE time_sessions ADD COLUMN target_duration_ms INTEGER;`,
+      `ALTER TABLE journal_entries ADD COLUMN habit_id TEXT REFERENCES habits(id);`,
+      `ALTER TABLE journal_entries ADD COLUMN session_id TEXT REFERENCES time_sessions(id);`,
+    ],
+  },
+  {
+    version: 3,
+    statements: [
+      `ALTER TABLE habits ADD COLUMN streak_json TEXT NOT NULL DEFAULT '{"mode":"scheduled","graceDays":0}';`,
+    ],
+  },
+  {
+    version: 4,
+    statements: [
+      `ALTER TABLE time_sessions ADD COLUMN paused_at TEXT;`,
+      `ALTER TABLE time_sessions ADD COLUMN paused_total_ms INTEGER NOT NULL DEFAULT 0;`,
+    ],
+  },
 ];
 
 async function getUserVersion(sqlite: SQLiteDatabase): Promise<number> {

@@ -2,6 +2,7 @@ import { type ReactNode, createContext, useContext, useEffect, useState } from '
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { getSqlite, migrate } from '@/src/db';
+import { colors } from '@/src/shared/ui/tokens';
 
 type DatabaseStatus = 'loading' | 'ready' | 'error';
 
@@ -93,22 +94,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
     gap: 12,
-    backgroundColor: '#F7F5F2',
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
+    color: colors.text,
   },
   message: {
     fontSize: 14,
-    color: '#555',
+    color: colors.textMuted,
     textAlign: 'center',
   },
   retry: {
     marginTop: 8,
     fontSize: 16,
-    color: '#1F6B5A',
+    color: colors.accent,
     fontWeight: '600',
   },
 });

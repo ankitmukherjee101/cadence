@@ -1,3 +1,4 @@
+export * from './analytics';
 export * from './dates';
 export * from './day';
 export * from './habit';
