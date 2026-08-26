@@ -43,3 +43,5 @@ yarn-error.*
 
 # drizzle
 drizzle/meta/
+
+docs/
