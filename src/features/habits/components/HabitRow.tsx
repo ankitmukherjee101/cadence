@@ -3,6 +3,7 @@ import Ellipsis from 'lucide-react-native/icons/ellipsis';
 
 import type { Habit } from '@/src/domain';
 import { hapticSelection } from '@/src/shared/lib/haptics';
+import { Checkbox } from '@/src/shared/ui/Checkbox';
 import { HabitIcon, TimerActionIcon } from '@/src/shared/ui/HabitIcon';
 import { colors, radii, spacing, typography } from '@/src/shared/ui/tokens';
 
@@ -34,12 +35,16 @@ export function HabitRow({
 
   return (
     <View style={[styles.row, completedToday && styles.rowDone]}>
+      <Checkbox
+        checked={completedToday}
+        accessibilityLabel={completedToday ? `${habit.name} done today` : habit.name}
+      />
       <View style={styles.iconWrap}>
         <HabitIcon
           name={habit.icon}
-          size={22}
+          size={20}
           color={completedToday ? colors.accentMuted : colors.accent}
-          strokeWidth={1.75}
+          strokeWidth={1.5}
         />
       </View>
       <Pressable
@@ -66,7 +71,7 @@ export function HabitRow({
         onPress={openMenu}
         hitSlop={8}
         style={styles.moreBtn}>
-        <Ellipsis size={18} color={colors.textMuted} strokeWidth={2} />
+        <Ellipsis size={18} color={colors.textMuted} strokeWidth={1.5} />
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -82,7 +87,7 @@ export function HabitRow({
           pressed && styles.timerBtnPressed,
           disabled && styles.disabled,
         ]}>
-        <TimerActionIcon size={20} color={colors.accentGlow} strokeWidth={2} />
+        <TimerActionIcon size={18} color={colors.accent} strokeWidth={1.5} />
       </Pressable>
     </View>
   );
@@ -93,10 +98,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.md + 2,
-    paddingHorizontal: spacing.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderSubtle,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   rowDone: {
     opacity: 0.72,
@@ -108,8 +116,8 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   iconWrap: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     borderRadius: radii.md,
     backgroundColor: colors.accentSoft,
     alignItems: 'center',
@@ -118,7 +126,7 @@ const styles = StyleSheet.create({
   meta: {
     flex: 1,
     gap: 2,
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   name: {
     ...typography.bodyMedium,
@@ -128,27 +136,26 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   sub: {
-    ...typography.caption,
+    ...typography.data,
     color: colors.textMuted,
-    letterSpacing: 0.2,
-    textTransform: 'none',
-    fontFamily: typography.caption.fontFamily,
   },
   moreBtn: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
   timerBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   timerBtnPressed: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surfaceHover,
   },
 });

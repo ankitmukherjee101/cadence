@@ -341,12 +341,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
   title: {
     ...typography.heading,
+    fontSize: 20,
+    lineHeight: 28,
     color: colors.text,
   },
   close: {
@@ -354,20 +356,21 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   content: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     paddingBottom: spacing.xl,
     gap: spacing.sm,
   },
   label: {
-    ...typography.caption,
+    ...typography.labelSm,
     color: colors.textMuted,
     marginTop: spacing.sm,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
   },
   input: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     ...typography.body,
@@ -384,17 +387,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   emptyIcons: {
-    ...typography.caption,
+    ...typography.data,
     color: colors.textMuted,
     paddingVertical: spacing.sm,
-    textTransform: 'none',
-    letterSpacing: 0,
   },
   moreIconsHint: {
-    ...typography.caption,
+    ...typography.data,
     color: colors.textMuted,
-    textTransform: 'none',
-    letterSpacing: 0,
   },
   iconRow: {
     flexDirection: 'row',
@@ -408,9 +407,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   iconChipActive: {
     backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
   },
   advancedToggle: {
     flexDirection: 'row',
@@ -435,11 +437,9 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   reminderHint: {
-    ...typography.caption,
+    ...typography.data,
     color: colors.textMuted,
     marginTop: 2,
-    textTransform: 'none',
-    letterSpacing: 0,
   },
   timeLabel: {
     ...typography.heading,
@@ -455,10 +455,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 2,
     borderRadius: radii.md,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   modeChipActive: {
     backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
   },
   modeText: {
     ...typography.body,
@@ -476,22 +479,25 @@ const styles = StyleSheet.create({
   presetChip: {
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: 6,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   presetChipActive: {
     backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
   },
   presetText: {
-    ...typography.caption,
+    ...typography.data,
     color: colors.textMuted,
   },
   presetTextActive: {
     color: colors.accent,
   },
   footer: {
-    padding: spacing.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSubtle,
+    padding: spacing.container,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
 });

@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing, typography } from '@/src/shared/ui/tokens';
+import { colors, radii, spacing, typography } from '@/src/shared/ui/tokens';
 
 type Props = {
   title: string;
@@ -25,7 +25,7 @@ export function EmptyState({ title, body, icon: Icon }: Props) {
 
 const styles = StyleSheet.create({
   empty: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     paddingTop: spacing.xxl,
     gap: spacing.sm,
     alignItems: 'flex-start',
@@ -33,8 +33,10 @@ const styles = StyleSheet.create({
   glyph: {
     width: 48,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.accentSoft,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,

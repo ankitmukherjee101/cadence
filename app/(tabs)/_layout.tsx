@@ -27,9 +27,14 @@ export default function TabLayout() {
           tabBarStyle: {
             height: tabBarHeight,
             paddingBottom: insets.bottom,
-            backgroundColor: colors.surface,
-            borderTopColor: colors.borderSubtle,
-            borderTopWidth: 0.5,
+            backgroundColor: colors.background,
+            borderTopColor: colors.border,
+            borderTopWidth: 1,
+          },
+          tabBarLabelStyle: {
+            fontFamily: 'InstrumentSans_500Medium',
+            fontSize: 11,
+            letterSpacing: 0.2,
           },
           sceneStyle: {
             paddingBottom: sessionBarHeight,

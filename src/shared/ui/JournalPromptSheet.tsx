@@ -15,7 +15,7 @@ import { useCreateJournalEntry } from '@/src/features/habits/hooks';
 import { Button } from '@/src/shared/ui/Button';
 import { HabitIcon } from '@/src/shared/ui/HabitIcon';
 import { paper } from '@/src/shared/ui/theme';
-import { colors, fonts, radii, spacing, typography } from '@/src/shared/ui/tokens';
+import { colors, radii, spacing, typography } from '@/src/shared/ui/tokens';
 import { useUiStore } from '@/src/store/ui-store';
 
 export function JournalPromptSheet() {
@@ -57,7 +57,7 @@ export function JournalPromptSheet() {
         <View style={styles.sheet}>
           <Text style={styles.title}>Add a journal note?</Text>
           <View style={styles.metaRow}>
-            <HabitIcon name={prompt.habitIcon} size={16} color={colors.accent} />
+            <HabitIcon name={prompt.habitIcon} size={16} color={colors.accent} strokeWidth={1.5} />
             <Text style={styles.meta}>
               {prompt.habitName} · {formatDurationShort(prompt.durationMs)}
             </Text>
@@ -68,6 +68,8 @@ export function JournalPromptSheet() {
               <TextInput
                 autoFocus
                 multiline
+                cursorColor={colors.accent}
+                selectionColor={colors.accent}
                 placeholder="What stood out in this session?"
                 placeholderTextColor={paper.inkMuted}
                 style={styles.input}
@@ -106,19 +108,20 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: paper.background,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
+    padding: spacing.container,
     gap: spacing.sm,
     paddingBottom: spacing.xl,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: paper.margin,
+    borderTopWidth: 1,
+    borderColor: colors.border,
   },
   title: {
-    fontFamily: fonts.serifSemiBold,
-    fontSize: 22,
-    color: paper.ink,
+    ...typography.heading,
+    fontSize: 20,
+    lineHeight: 28,
+    color: colors.text,
   },
   metaRow: {
     flexDirection: 'row',
@@ -127,19 +130,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   meta: {
-    ...typography.caption,
-    color: paper.inkMuted,
-    textTransform: 'none',
-    letterSpacing: 0,
+    ...typography.data,
+    color: colors.textMuted,
   },
   input: {
-    minHeight: 110,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    fontFamily: fonts.serif,
-    fontSize: 17,
-    lineHeight: 28,
+    minHeight: 120,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
+    ...typography.journalBody,
     color: paper.ink,
     textAlignVertical: 'top',
   },

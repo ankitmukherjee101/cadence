@@ -421,23 +421,32 @@ export function createTimeRepository(db: CadenceDb = getDb()) {
 
     /**
      * Insert a completed session on a local calendar date (backfill / journal log).
-     * Anchors `endedAt` at local noon on `date`, with `startedAt` = ended − duration.
+     * Anchors `endedAt` at `endedMinutes` past local midnight on `date` (default noon),
+     * with `startedAt` = ended − duration.
      */
     async logCompleted(input: {
       label: string;
       habitId: string;
       durationMs: number;
       date: LocalDate;
+      /** Minutes from local midnight when the session ended (0–1439). Defaults to noon. */
+      endedMinutes?: number;
       notes?: string;
     }): Promise<TimeSession> {
       const durationMs = Math.max(60_000, Math.round(input.durationMs));
       const dayStart = parseLocalDate(input.date);
+      const endedMins = Math.min(
+        23 * 60 + 59,
+        Math.max(0, Math.round(input.endedMinutes ?? 12 * 60)),
+      );
+      const hour = Math.floor(endedMins / 60);
+      const minute = endedMins % 60;
       const endedLocal = new Date(
         dayStart.getFullYear(),
         dayStart.getMonth(),
         dayStart.getDate(),
-        12,
-        0,
+        hour,
+        minute,
         0,
         0,
       );
@@ -557,6 +566,7 @@ export function createTimeRepository(db: CadenceDb = getDb()) {
       const dayMinutes = await this.getHabitDayMinutes(habitId, rangeStart, today);
 
       let totalMsAll = 0;
+      let totalMsToday = 0;
       let totalMsWeek = 0;
       let totalMsMonth = 0;
       const completedDates = new Set<LocalDate>();
@@ -565,6 +575,7 @@ export function createTimeRepository(db: CadenceDb = getDb()) {
         const ms = sessionDurationMs(session);
         const date = toLocalDate(new Date(session.startedAt));
         totalMsAll += ms;
+        if (date === today) totalMsToday += ms;
         if (date >= weekStart) totalMsWeek += ms;
         if (date >= monthStart) totalMsMonth += ms;
         completedDates.add(date);
@@ -583,6 +594,7 @@ export function createTimeRepository(db: CadenceDb = getDb()) {
       return {
         habitId,
         dayMinutes,
+        totalMsToday,
         totalMsAll,
         totalMsWeek,
         totalMsMonth,

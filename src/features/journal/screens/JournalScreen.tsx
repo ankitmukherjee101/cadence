@@ -283,6 +283,8 @@ function NewEntryModal({
         <TextInput
           autoFocus
           multiline
+          cursorColor={colors.accent}
+          selectionColor={colors.accent}
           placeholder="Write freely…"
           placeholderTextColor={paper.inkMuted}
           style={styles.entryInput}
@@ -445,16 +447,14 @@ const styles = StyleSheet.create({
     backgroundColor: paper.background,
   },
   header: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
   brand: {
-    fontFamily: fonts.serifSemiBold,
-    fontSize: 28,
-    letterSpacing: -0.3,
+    ...typography.brand,
     color: paper.ink,
   },
   headerActions: {
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     marginBottom: spacing.md,
   },
   dateBtn: {
@@ -490,23 +490,22 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   dateHeading: {
-    fontFamily: fonts.serifSemiBold,
+    ...typography.heading,
     fontSize: 22,
+    lineHeight: 28,
     color: paper.ink,
   },
   dateSub: {
-    ...typography.caption,
+    ...typography.data,
     color: paper.inkMuted,
     marginTop: 2,
-    textTransform: 'none',
-    letterSpacing: 0,
   },
   paper: {
     flex: 1,
     backgroundColor: paper.background,
   },
   timeline: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     paddingBottom: spacing.xxl,
   },
   gap: {
@@ -514,7 +513,9 @@ const styles = StyleSheet.create({
   },
   sessionCard: {
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
     gap: spacing.sm,
   },
@@ -527,10 +528,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardTime: {
-    ...typography.caption,
+    ...typography.data,
     color: paper.inkMuted,
-    textTransform: 'none',
-    letterSpacing: 0,
   },
   sessionTitleRow: {
     flexDirection: 'row',
@@ -543,18 +542,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sessionDuration: {
-    ...typography.caption,
+    ...typography.data,
     color: colors.accentMuted,
-    textTransform: 'none',
-    letterSpacing: 0,
   },
   nestedJournal: {
     ...typography.journalBody,
     fontSize: 16,
     lineHeight: 26,
     color: paper.ink,
-    paddingTop: spacing.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
     borderTopColor: paper.line,
   },
   freeEntry: {
@@ -564,22 +561,18 @@ const styles = StyleSheet.create({
   },
   eventTime: {
     width: 64,
-    ...typography.caption,
+    ...typography.data,
     color: paper.inkMuted,
     paddingTop: 2,
-    textTransform: 'none',
-    letterSpacing: 0,
   },
   eventBody: {
     flex: 1,
     gap: 4,
   },
   journalLabel: {
-    fontFamily: fonts.serif,
-    fontSize: 12,
+    ...typography.labelSm,
     color: paper.inkMuted,
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
   },
   journalBody: {
     ...typography.journalBody,
@@ -603,11 +596,13 @@ const styles = StyleSheet.create({
   },
   calSheet: {
     position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
+    left: spacing.container,
+    right: spacing.container,
     top: '22%',
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
   },
   calHeader: {
@@ -618,6 +613,8 @@ const styles = StyleSheet.create({
   },
   calTitle: {
     ...typography.heading,
+    fontSize: 20,
+    lineHeight: 28,
     color: colors.text,
   },
   dowRow: {
@@ -627,7 +624,7 @@ const styles = StyleSheet.create({
   dow: {
     width: `${100 / 7}%` as unknown as number,
     textAlign: 'center',
-    ...typography.caption,
+    ...typography.labelSm,
     color: colors.textMuted,
   },
   grid: {
@@ -642,19 +639,19 @@ const styles = StyleSheet.create({
   },
   dayCellSelected: {
     backgroundColor: colors.accent,
-    borderRadius: radii.full,
+    borderRadius: radii.md,
   },
   dayCellToday: {
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderColor: colors.accent,
-    borderRadius: radii.full,
+    borderRadius: radii.md,
   },
   dayText: {
     ...typography.body,
     color: colors.text,
   },
   dayTextSelected: {
-    color: colors.background,
+    color: colors.onPrimary,
     fontFamily: fonts.sansSemiBold,
   },
   entryModal: {
@@ -665,7 +662,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.lg,
+    padding: spacing.container,
   },
   entryTitle: {
     ...typography.journalTitle,
@@ -677,12 +674,12 @@ const styles = StyleSheet.create({
   },
   entryInput: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     ...typography.journalBody,
     color: paper.ink,
     textAlignVertical: 'top',
   },
   entryFooter: {
-    padding: spacing.lg,
+    padding: spacing.container,
   },
 });

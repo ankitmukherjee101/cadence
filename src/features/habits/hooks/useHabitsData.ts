@@ -358,6 +358,8 @@ export function useLogCompletedSession() {
       habitId: string;
       date: LocalDate;
       durationMs: number;
+      /** Minutes from local midnight when the session ended. */
+      endedMinutes?: number;
     }) => {
       const habit = await habitsRepo().getById(input.habitId);
       if (!habit) throw new Error('Habit not found');
@@ -366,6 +368,7 @@ export function useLogCompletedSession() {
         habitId: habit.id,
         durationMs: input.durationMs,
         date: input.date,
+        endedMinutes: input.endedMinutes,
       });
       await habitsRepo().upsertLog({
         habitId: habit.id,

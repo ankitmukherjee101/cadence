@@ -24,7 +24,7 @@ import { FadeDown } from '@/src/shared/ui/motion';
 import { colors, fonts, radii, spacing, typography } from '@/src/shared/ui/tokens';
 import { useUiStore } from '@/src/store/ui-store';
 
-const CELL_EMPTY = colors.surfaceElevated;
+const CELL_EMPTY = colors.surfaceHover;
 const CELL_ACTIVE = colors.accent;
 
 function WeekStrip({
@@ -156,12 +156,16 @@ export function AnalyticsScreen() {
   const heroValue = analytics
     ? analytics.currentStreak > 0
       ? `${analytics.currentStreak}d`
-      : formatDurationShort(analytics.totalMsWeek)
+      : analytics.totalMsToday > 0
+        ? formatDurationShort(analytics.totalMsToday)
+        : formatDurationShort(analytics.totalMsWeek)
     : '—';
   const heroLabel = analytics
     ? analytics.currentStreak > 0
       ? 'Current streak'
-      : 'This week'
+      : analytics.totalMsToday > 0
+        ? 'Today'
+        : 'This week'
     : '';
 
   return (
@@ -221,6 +225,18 @@ export function AnalyticsScreen() {
                 <Text style={styles.heroLabel}>{heroLabel}</Text>
               </View>
 
+              <Text style={styles.sectionLabel}>Today</Text>
+              <View style={styles.todayCard}>
+                <Text style={styles.todayValue}>
+                  {analytics.totalMsToday > 0
+                    ? formatDurationShort(analytics.totalMsToday)
+                    : '—'}
+                </Text>
+                <Text style={styles.todayHint}>
+                  {analytics.totalMsToday > 0 ? 'Practiced today' : 'No practice yet today'}
+                </Text>
+              </View>
+
               <Text style={styles.sectionLabel}>This week</Text>
               <WeekStrip dayMinutes={analytics.dayMinutes} />
 
@@ -228,6 +244,7 @@ export function AnalyticsScreen() {
               <ContributionGraph dayMinutes={analytics.dayMinutes} />
 
               <View style={styles.stats}>
+                <Stat label="Today" value={formatDurationShort(analytics.totalMsToday)} />
                 <Stat label="This week" value={formatDurationShort(analytics.totalMsWeek)} />
                 <Stat label="30 days" value={formatDurationShort(analytics.totalMsMonth)} />
                 <Stat label="All time" value={formatDurationShort(analytics.totalMsAll)} />
@@ -266,14 +283,13 @@ const styles = StyleSheet.create({
   },
   brand: {
     ...typography.brand,
-    letterSpacing: 2,
-    color: colors.accentGlow,
-    paddingHorizontal: spacing.lg,
+    color: colors.text,
+    paddingHorizontal: spacing.container,
   },
   subtitle: {
     ...typography.body,
     color: colors.textMuted,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     marginBottom: spacing.lg,
     marginTop: 4,
   },
@@ -282,7 +298,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   chips: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     gap: spacing.sm,
   },
   chip: {
@@ -293,9 +309,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.md,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   chipActive: {
     backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
   },
   chipText: {
     ...typography.body,
@@ -309,14 +328,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
+    marginTop: spacing.sm,
   },
   sectionTitle: {
     ...typography.heading,
+    fontSize: 20,
+    lineHeight: 28,
     color: colors.text,
   },
   hero: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     paddingVertical: spacing.md,
     gap: 4,
   },
@@ -325,25 +347,46 @@ const styles = StyleSheet.create({
     fontSize: 48,
     color: colors.accentGlow,
     letterSpacing: -1.5,
+    fontVariant: ['tabular-nums'],
   },
   heroLabel: {
-    ...typography.caption,
+    ...typography.labelSm,
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+  },
+  todayCard: {
+    marginHorizontal: spacing.container,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 4,
+  },
+  todayValue: {
+    fontFamily: fonts.mono,
+    fontSize: 28,
+    color: colors.accentGlow,
+    letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
+  },
+  todayHint: {
+    ...typography.data,
+    color: colors.textMuted,
   },
   sectionLabel: {
-    ...typography.caption,
+    ...typography.labelSm,
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
+    marginTop: spacing.section - spacing.md,
   },
   weekStrip: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     height: 72,
     gap: 6,
   },
@@ -361,11 +404,11 @@ const styles = StyleSheet.create({
   weekBar: {
     width: '70%',
     maxWidth: 28,
-    borderRadius: 4,
-    minHeight: 4,
+    borderRadius: 0,
+    minHeight: 2,
   },
   weekLabel: {
-    ...typography.caption,
+    ...typography.labelSm,
     color: colors.textMuted,
     fontSize: 11,
   },
@@ -375,7 +418,7 @@ const styles = StyleSheet.create({
   graphRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingLeft: spacing.lg,
+    paddingLeft: spacing.container,
     gap: spacing.xs,
   },
   dowLabels: {
@@ -388,12 +431,12 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 12,
     color: colors.textMuted,
-    fontFamily: fonts.sansMedium,
+    fontFamily: fonts.geistMedium,
   },
   graph: {
     flexDirection: 'row',
     gap: 3,
-    paddingRight: spacing.lg,
+    paddingRight: spacing.container,
     paddingVertical: spacing.sm,
   },
   weekColHeat: {
@@ -402,48 +445,53 @@ const styles = StyleSheet.create({
   cell: {
     width: 12,
     height: 12,
-    borderRadius: 2,
+    borderRadius: radii.xs,
   },
   legend: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     marginTop: spacing.xs,
   },
   legendText: {
-    ...typography.caption,
+    ...typography.labelSm,
     color: colors.textMuted,
     fontSize: 10,
-    textTransform: 'none',
     letterSpacing: 0,
   },
   legendCell: {
     width: 10,
     height: 10,
-    borderRadius: 2,
+    borderRadius: radii.xs,
   },
   stats: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     gap: spacing.md,
-    marginTop: spacing.sm,
+    marginTop: spacing.section,
   },
   stat: {
     width: '30%',
     minWidth: 96,
     gap: 2,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   statValue: {
-    ...typography.bodyMedium,
+    ...typography.data,
     color: colors.text,
     fontSize: 17,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
-    ...typography.caption,
+    ...typography.labelSm,
     color: colors.textMuted,
-    textTransform: 'none',
     letterSpacing: 0,
   },
 });

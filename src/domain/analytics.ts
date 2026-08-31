@@ -9,6 +9,7 @@ export type HabitDayMinutes = {
 export type HabitAnalytics = {
   habitId: HabitId;
   dayMinutes: HabitDayMinutes[];
+  totalMsToday: number;
   totalMsAll: number;
   totalMsWeek: number;
   totalMsMonth: number;

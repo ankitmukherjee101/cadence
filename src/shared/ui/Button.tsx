@@ -27,7 +27,8 @@ export function Button({ label, onPress, variant = 'primary', disabled, style }:
         variant === 'primary' && styles.primary,
         variant === 'ghost' && styles.ghost,
         variant === 'danger' && styles.danger,
-        (pressed || disabled) && styles.pressed,
+        pressed && variant === 'primary' && styles.primaryPressed,
+        pressed && variant !== 'primary' && styles.pressed,
         disabled && styles.disabled,
         style,
       ]}>
@@ -57,24 +58,29 @@ const styles = StyleSheet.create({
   },
   ghost: {
     backgroundColor: 'transparent',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderColor: colors.border,
   },
   danger: {
     backgroundColor: colors.dangerSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  primaryPressed: {
+    opacity: 0.88,
   },
   pressed: {
-    opacity: 0.82,
+    backgroundColor: colors.surfaceHover,
   },
   disabled: {
     opacity: 0.4,
   },
   label: {
-    ...typography.bodyMedium,
+    ...typography.bodyBold,
   },
   primaryLabel: {
-    color: colors.background,
-    fontFamily: typography.bodyMedium.fontFamily,
+    color: colors.onPrimary,
+    fontFamily: typography.bodyBold.fontFamily,
   },
   ghostLabel: {
     color: colors.text,

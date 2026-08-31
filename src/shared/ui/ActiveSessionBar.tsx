@@ -45,9 +45,9 @@ export function ActiveSessionBar() {
       <View style={styles.left}>
         <View style={[styles.dot, paused && styles.dotPaused]} />
         {habit ? (
-          <HabitIcon name={habit.icon} size={16} color={colors.accentGlow} />
+          <HabitIcon name={habit.icon} size={16} color={colors.accent} strokeWidth={1.5} />
         ) : (
-          <SessionFallbackIcon size={16} color={colors.accentGlow} />
+          <SessionFallbackIcon size={16} color={colors.accent} />
         )}
         <Text style={styles.name} numberOfLines={1}>
           {habit?.name ?? session.label}
@@ -64,10 +64,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surfaceElevated,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.container,
     paddingVertical: spacing.sm + 2,
     gap: spacing.sm,
   },
@@ -96,7 +96,9 @@ const styles = StyleSheet.create({
   },
   time: {
     fontFamily: fonts.mono,
-    fontSize: 14,
-    color: colors.accentGlow,
+    fontSize: 13,
+    letterSpacing: 0.39,
+    color: colors.accent,
+    fontVariant: ['tabular-nums'],
   },
 });

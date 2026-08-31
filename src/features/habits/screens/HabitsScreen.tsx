@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
+  SectionList,
   Pressable,
   StyleSheet,
   Text,
@@ -38,6 +38,33 @@ import { useUiStore } from '@/src/store/ui-store';
 
 const ACTIVE_SESSION_HREF = '/session/active' as Href;
 const TAB_BAR_BASE = 49;
+const UNCATEGORIZED_LABEL = 'Uncategorized';
+
+type HabitSection = {
+  title: string;
+  data: Habit[];
+};
+
+function groupHabitsByCategory(habits: Habit[]): HabitSection[] {
+  const groups = new Map<string, Habit[]>();
+  for (const habit of habits) {
+    const key = habit.category?.trim() || '';
+    const list = groups.get(key) ?? [];
+    list.push(habit);
+    groups.set(key, list);
+  }
+
+  return [...groups.entries()]
+    .sort(([a], [b]) => {
+      if (!a) return 1;
+      if (!b) return -1;
+      return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    })
+    .map(([category, data]) => ({
+      title: category || UNCATEGORIZED_LABEL,
+      data,
+    }));
+}
 
 export function HabitsScreen() {
   const insets = useSafeAreaInsets();
@@ -68,6 +95,8 @@ export function HabitsScreen() {
 
   const doneCount = habits?.filter((h) => completedIds.has(h.id)).length ?? 0;
   const totalCount = habits?.length ?? 0;
+
+  const sections = useMemo(() => groupHabitsByCategory(habits ?? []), [habits]);
 
   const editingHabit = habits?.find((h) => h.id === editingId) ?? null;
 
@@ -177,7 +206,7 @@ export function HabitsScreen() {
               onPress={openCreate}
               hitSlop={8}
               style={styles.addBtn}>
-              <CirclePlus size={22} color={colors.accent} strokeWidth={1.75} />
+              <CirclePlus size={22} color={colors.accent} strokeWidth={1.5} />
             </Pressable>
           </View>
         </View>
@@ -193,15 +222,21 @@ export function HabitsScreen() {
             body="Add a habit, then start a timed session. Ending a session marks it done for today."
           />
           {archivedBlock ? (
-            <View style={{ paddingHorizontal: spacing.lg }}>{archivedBlock}</View>
+            <View style={{ paddingHorizontal: spacing.container }}>{archivedBlock}</View>
           ) : null}
         </>
       ) : (
-        <FlatList
-          data={habits}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, { paddingBottom: listBottom }]}
           ListFooterComponent={archivedBlock}
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) =>
+            sections.length > 1 || section.title !== UNCATEGORIZED_LABEL ? (
+              <Text style={styles.sectionHeader}>{section.title}</Text>
+            ) : null
+          }
           renderItem={({ item }) => (
             <HabitRow
               habit={item}
@@ -233,7 +268,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     marginBottom: spacing.lg,
   },
   headerTop: {
@@ -242,7 +277,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   metric: {
-    ...typography.body,
+    ...typography.data,
     color: colors.textMuted,
     flex: 1,
   },
@@ -253,10 +288,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   list: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
+  },
+  sectionHeader: {
+    ...typography.labelSm,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   archivedBlock: {
-    marginTop: spacing.xl,
+    marginTop: spacing.section,
     gap: spacing.sm,
     paddingBottom: spacing.lg,
   },
@@ -264,18 +306,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   archivedToggleText: {
-    ...typography.caption,
+    ...typography.labelSm,
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
   },
   archivedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderSubtle,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
     gap: spacing.md,
   },
   archivedName: {

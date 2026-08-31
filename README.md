@@ -7,7 +7,7 @@ Data stays on your device in SQLite. There is no account, no cloud sync, and no 
 ## Features
 
 ### Habits
-- Create habits with Lucide icons, categories, daily/weekly schedules, optional reminders, and streak settings (calendar vs scheduled days, optional grace days).
+- Create habits with Lucide icons, categories, optional daily reminders, and streak settings (calendar vs scheduled days, optional grace days). Weekly schedules are supported in the domain/data model; create UI is daily-only today.
 - Start a **stopwatch** or **pomodoro** session from the habit list; mode and lengths are chosen per session (last choice remembered per habit).
 - Ending a session marks the habit complete for that local date.
 - Archive / restore habits without losing history.
@@ -44,7 +44,7 @@ Data stays on your device in SQLite. There is no account, no cloud sync, and no 
 | Motion / haptics | Reanimated, `expo-haptics` |
 | Notifications | `expo-notifications` (local; see notes below) |
 
-Full engineering detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Full engineering detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Product brief for design tools: [docs/PRODUCT.md](docs/PRODUCT.md).
 
 ## Requirements
 
@@ -97,7 +97,8 @@ cadence/
 │   │   └── lib/              # Query keys, notifications, haptics, prefs
 │   └── store/                # Zustand ephemeral UI state
 ├── docs/
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md
+│   └── PRODUCT.md
 ├── assets/
 └── package.json
 ```

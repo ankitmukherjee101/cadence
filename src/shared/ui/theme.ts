@@ -2,11 +2,18 @@ import { colors, fonts, radii, spacing, typography } from './tokens';
 
 export { colors, fonts, radii, spacing, typography };
 
-/** Journal surface — full-bleed literary paper. */
+/** Journal / reading surface — charcoal continuum, not literary paper. */
 export const paper = {
-  background: '#141312',
-  line: '#22201E',
-  ink: '#D4CFC6',
-  inkMuted: '#7A7570',
-  margin: '#2A2724',
+  background: colors.background,
+  line: colors.border,
+  ink: colors.text,
+  inkMuted: colors.textMuted,
+  margin: colors.border,
+} as const;
+
+/** Data card surface — tonal stack + blueprint outline */
+export const card = {
+  background: colors.surface,
+  border: colors.border,
+  radius: radii.md,
 } as const;

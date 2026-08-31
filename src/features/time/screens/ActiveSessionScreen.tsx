@@ -268,14 +268,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   mode: {
-    ...typography.caption,
+    ...typography.labelSm,
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
     textAlign: 'center',
   },
   config: {
-    ...typography.caption,
+    ...typography.data,
     color: colors.textMuted,
     marginTop: spacing.sm,
   },

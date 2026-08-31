@@ -13,7 +13,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#3D3D3D",
+        "backgroundColor": "#121212",
+        "backgroundImage": "./assets/images/android-icon-background.png",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -39,7 +40,7 @@
       [
         "expo-notifications",
         {
-          "color": "#C0C0C0",
+          "color": "#C2B9AD",
           "defaultChannel": "cadence-sessions"
         }
       ]

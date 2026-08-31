@@ -366,7 +366,7 @@ export function HabitIcon({
   name,
   size = 28,
   color = colors.accent,
-  strokeWidth = 2,
+  strokeWidth = 1.5,
 }: HabitIconProps) {
   const id = resolveHabitIconId(name);
   const Icon = ICON_MAP[id] ?? (Sparkles as LucideIcon);
@@ -381,13 +381,13 @@ export function SessionFallbackIcon({
   color?: string;
 }) {
   const Icon = Timer as LucideIcon;
-  return <Icon size={size} color={color} strokeWidth={2} />;
+  return <Icon size={size} color={color} strokeWidth={1.5} />;
 }
 
 export function TimerActionIcon({
   size = 22,
   color = colors.accent,
-  strokeWidth = 2,
+  strokeWidth = 1.5,
 }: {
   size?: number;
   color?: string;
@@ -400,7 +400,7 @@ export function TimerActionIcon({
 export function PlusIcon({
   size = 28,
   color = colors.accent,
-  strokeWidth = 2.5,
+  strokeWidth = 1.5,
 }: {
   size?: number;
   color?: string;

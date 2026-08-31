@@ -59,6 +59,8 @@ export function JournalEntryScreen() {
       </View>
       <TextInput
         multiline
+        cursorColor={colors.accent}
+        selectionColor={colors.accent}
         style={styles.input}
         value={body}
         onChangeText={(t) => {
@@ -87,7 +89,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     marginBottom: spacing.md,
   },
   link: {
@@ -95,18 +97,16 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   date: {
-    ...typography.caption,
+    ...typography.data,
     color: paper.inkMuted,
-    textTransform: 'none',
-    letterSpacing: 0,
   },
   input: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
     ...typography.journalBody,
     color: paper.ink,
   },
   footer: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.container,
   },
 });

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -14,9 +14,10 @@ type Props = {
   children?: ReactNode;
 };
 
+/** Thin architectural ring — butt caps, no rounded ends. */
 export function SessionRing({
   size = 280,
-  strokeWidth = 2.5,
+  strokeWidth = 2,
   progress,
   trackColor = colors.border,
   progressColor = colors.accent,
@@ -47,7 +48,7 @@ export function SessionRing({
           fill="none"
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={offset}
-          strokeLinecap="round"
+          strokeLinecap="butt"
           rotation="-90"
           origin={`${size / 2}, ${size / 2}`}
         />
