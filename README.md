@@ -40,7 +40,7 @@ Data stays on your device in SQLite. There is no account, no cloud sync, and no 
 | UI state | Zustand (sheets / prompts only) |
 | Session prefs | AsyncStorage (last timer mode per habit) |
 | Icons | Lucide |
-| Fonts | DM Sans + Literata |
+| Fonts | Instrument Sans + Geist |
 | Motion / haptics | Reanimated, `expo-haptics` |
 | Notifications | `expo-notifications` (local; see notes below) |
 
@@ -50,7 +50,7 @@ Full engineering detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Product b
 
 - Node.js 20+ recommended
 - npm (lockfile is committed)
-- [Expo Go](https://expo.dev/go) for quick device testing, **or** a development build for full notification support on Android
+- [Expo Go](https://expo.dev/go) for quick UI checks, **or** a development/preview build for SQLite, notifications, and sideloading on Android
 
 ## Getting started
 
@@ -74,6 +74,22 @@ Then:
 | `npm run ios` | Start and open iOS |
 | `npm run web` | Start web (limited; mobile-first app) |
 | `npm run typecheck` | `tsc --noEmit` |
+
+## Install on Android
+
+For a real installable app (not Expo Go), build an APK with [EAS Build](https://docs.expo.dev/build/introduction/):
+
+```bash
+npm install -g eas-cli
+eas login
+eas build -p android --profile preview
+```
+
+When the build finishes, download the `.apk` from the link EAS prints (or from [expo.dev](https://expo.dev) → your project → Builds) and install it on your phone. Allow **Install unknown apps** if Android prompts you.
+
+**Updates:** Installing a new APK from EAS over an existing Cadence install updates the app in place and **keeps your local data**, as long as the package name and signing key match (same EAS project). Uninstalling first wipes SQLite data.
+
+The `preview` profile in `eas.json` is configured for sideloadable APKs (`buildType: "apk"`). Use `production` for Play Store bundles (AAB).
 
 ## Project layout
 
@@ -133,7 +149,7 @@ On **Android Expo Go** (SDK 53+), `expo-notifications` is not loaded (import thr
 
 ## Design
 
-Cadence uses a dark charcoal UI with a champagne-silver accent — closer to a calm instrument than neon SaaS. Tokens live in `src/shared/ui/tokens.ts`. Journal surfaces lean on Literata; chrome uses DM Sans.
+Cadence uses a dark charcoal UI with a champagne-silver accent — closer to a calm instrument than neon SaaS. Tokens live in `src/shared/ui/tokens.ts`. Instrument Sans for UI chrome; Geist for journal entries and data. See [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Current status
 

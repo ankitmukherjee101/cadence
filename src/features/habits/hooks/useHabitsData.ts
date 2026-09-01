@@ -353,6 +353,7 @@ export function useCreateJournalEntry() {
 /** Log a finished timed session on a calendar date (journal backfill). */
 export function useLogCompletedSession() {
   const qc = useQueryClient();
+  const setJournalPrompt = useUiStore((s) => s.setJournalPrompt);
   return useMutation({
     mutationFn: async (input: {
       habitId: string;
@@ -384,6 +385,15 @@ export function useLogCompletedSession() {
         qc.invalidateQueries({ queryKey: queryKeys.day(result.date) }),
         qc.invalidateQueries({ queryKey: queryKeys.habitAnalytics(result.habit.id) }),
       ]);
+
+      setJournalPrompt({
+        sessionId: result.session.id,
+        habitId: result.habit.id,
+        habitName: result.habit.name,
+        habitIcon: result.habit.icon,
+        date: result.date,
+        durationMs: sessionDurationMs(result.session),
+      });
     },
   });
 }

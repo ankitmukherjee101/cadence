@@ -34,6 +34,10 @@ import { useCreateJournalEntry, useDaySummary, useDeleteSession } from '@/src/fe
 import { Button } from '@/src/shared/ui/Button';
 import { HabitIcon } from '@/src/shared/ui/HabitIcon';
 import { FadeDown } from '@/src/shared/ui/motion';
+import {
+  SessionNoteModal,
+  type SessionNoteTarget,
+} from '@/src/shared/ui/SessionNoteModal';
 import { paper } from '@/src/shared/ui/theme';
 import { colors, fonts, radii, spacing, typography } from '@/src/shared/ui/tokens';
 
@@ -47,11 +51,13 @@ function formatDayHeading(date: LocalDate): string {
 function SessionCard({
   event,
   onOpenJournal,
+  onAddNote,
   onDelete,
   deleting,
 }: {
   event: Extract<DayEvent, { type: 'time_session' }>;
   onOpenJournal?: (id: string) => void;
+  onAddNote?: () => void;
   onDelete?: (sessionId: string) => void;
   deleting?: boolean;
 }) {
@@ -92,6 +98,13 @@ function SessionCard({
           <Text style={styles.nestedJournal} numberOfLines={6}>
             {journal.body}
           </Text>
+        </Pressable>
+      ) : data.endedAt && onAddNote ? (
+        <Pressable
+          onPress={onAddNote}
+          accessibilityRole="button"
+          accessibilityLabel="Add session note">
+          <Text style={styles.addNote}>Add note</Text>
         </Pressable>
       ) : null}
     </View>
@@ -138,11 +151,13 @@ function HabitLogRow({ event }: { event: Extract<DayEvent, { type: 'habit_log' }
 function TimelineItem({
   event,
   onOpenJournal,
+  onAddSessionNote,
   onDeleteSession,
   deletingSessionId,
 }: {
   event: DayEvent;
   onOpenJournal: (id: string) => void;
+  onAddSessionNote: (event: Extract<DayEvent, { type: 'time_session' }>) => void;
   onDeleteSession: (sessionId: string) => void;
   deletingSessionId?: string | null;
 }) {
@@ -151,6 +166,7 @@ function TimelineItem({
       <SessionCard
         event={event}
         onOpenJournal={onOpenJournal}
+        onAddNote={() => onAddSessionNote(event)}
         onDelete={onDeleteSession}
         deleting={deletingSessionId === event.data.id}
       />
@@ -315,11 +331,25 @@ export function JournalScreen() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const [sessionNoteTarget, setSessionNoteTarget] = useState<SessionNoteTarget | null>(null);
   const { data: summary, isLoading } = useDaySummary(date);
   const deleteSession = useDeleteSession();
 
   const openJournal = (id: string) => {
     router.push(`/journal/${id}` as Href);
+  };
+
+  const openSessionNote = (event: Extract<DayEvent, { type: 'time_session' }>) => {
+    const data = event.data;
+    if (!data.endedAt || !data.habitId) return;
+    setSessionNoteTarget({
+      sessionId: data.id,
+      habitId: data.habitId,
+      habitName: data.habitName ?? data.label,
+      habitIcon: data.habitIcon ?? 'sparkles',
+      date,
+      durationMs: sessionDurationMs(data),
+    });
   };
 
   const confirmDeleteSession = (sessionId: string) => {
@@ -419,6 +449,7 @@ export function JournalScreen() {
               <TimelineItem
                 event={item}
                 onOpenJournal={openJournal}
+                onAddSessionNote={openSessionNote}
                 onDeleteSession={confirmDeleteSession}
                 deletingSessionId={deleteSession.isPending ? deleteSession.variables : null}
               />
@@ -437,6 +468,10 @@ export function JournalScreen() {
 
       <NewEntryModal date={date} visible={newOpen} onClose={() => setNewOpen(false)} />
       <LogHabitSheet visible={logOpen} date={date} onClose={() => setLogOpen(false)} />
+      <SessionNoteModal
+        target={sessionNoteTarget}
+        onClose={() => setSessionNoteTarget(null)}
+      />
     </View>
   );
 }
@@ -550,6 +585,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 26,
     color: paper.ink,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: paper.line,
+  },
+  addNote: {
+    ...typography.bodyMedium,
+    color: colors.accent,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: paper.line,

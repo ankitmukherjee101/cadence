@@ -16,7 +16,7 @@ import ChevronUp from 'lucide-react-native/icons/chevron-up';
 
 import type { Habit, HabitIconId, HabitSchedule, StreakMode, StreakSettings } from '@/src/domain';
 import { DEFAULT_STREAK_SETTINGS } from '@/src/domain';
-import { useCreateHabit, useUpdateHabit } from '@/src/features/habits/hooks';
+import { useCreateHabit, useHabits, useUpdateHabit } from '@/src/features/habits/hooks';
 import { Button } from '@/src/shared/ui/Button';
 import { HABIT_ICON_OPTIONS, HabitIcon, resolveHabitIconId } from '@/src/shared/ui/HabitIcon';
 import { formatReminderLabel } from '@/src/shared/lib/notifications';
@@ -41,17 +41,44 @@ const REMINDER_PRESETS = [
 
 const GRACE_PRESETS = [0, 1, 2, 3] as const;
 
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
+const WEEKDAY_DEFAULT = [1, 2, 3, 4, 5] as const;
+
+const WEEKDAY_OPTIONS = [
+  { dow: 0, label: 'Sun' },
+  { dow: 1, label: 'Mon' },
+  { dow: 2, label: 'Tue' },
+  { dow: 3, label: 'Wed' },
+  { dow: 4, label: 'Thu' },
+  { dow: 5, label: 'Fri' },
+  { dow: 6, label: 'Sat' },
+] as const;
+
+function isAllDays(days: number[]): boolean {
+  return days.length === 7 && ALL_DAYS.every((d) => days.includes(d));
+}
+
+function scheduleDaysFromHabit(habit?: Habit | null): number[] {
+  if (!habit) return [...ALL_DAYS];
+  if (habit.schedule.kind === 'weekly') {
+    return [...habit.schedule.daysOfWeek].sort((a, b) => a - b);
+  }
+  return [...ALL_DAYS];
+}
+
 export function HabitFormModal({ visible, onClose, habit }: Props) {
   const createHabit = useCreateHabit();
   const updateHabit = useUpdateHabit();
+  const { data: habits } = useHabits();
 
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<HabitIconId>('sparkles');
   const [category, setCategory] = useState('');
+  const [categoryFocused, setCategoryFocused] = useState(false);
   const [iconQuery, setIconQuery] = useState('');
   const [reminderOn, setReminderOn] = useState(false);
   const [reminderMinutes, setReminderMinutes] = useState(9 * 60);
-  const [streakMode, setStreakMode] = useState<StreakMode>(DEFAULT_STREAK_SETTINGS.mode);
+  const [daysOfWeek, setDaysOfWeek] = useState<number[]>([...ALL_DAYS]);
   const [graceDays, setGraceDays] = useState(DEFAULT_STREAK_SETTINGS.graceDays);
   const [advanced, setAdvanced] = useState(false);
 
@@ -69,7 +96,7 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
         setReminderOn(false);
         setReminderMinutes(9 * 60);
       }
-      setStreakMode(habit.streak.mode);
+      setDaysOfWeek(scheduleDaysFromHabit(habit));
       setGraceDays(habit.streak.graceDays);
     } else {
       setName('');
@@ -77,12 +104,46 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
       setCategory('');
       setReminderOn(false);
       setReminderMinutes(9 * 60);
-      setStreakMode(DEFAULT_STREAK_SETTINGS.mode);
+      setDaysOfWeek([...ALL_DAYS]);
       setGraceDays(DEFAULT_STREAK_SETTINGS.graceDays);
     }
     setIconQuery('');
+    setCategoryFocused(false);
     setAdvanced(false);
   }, [visible, habit]);
+
+  const existingCategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const h of habits ?? []) {
+      const c = h.category?.trim();
+      if (c) set.add(c);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [habits]);
+
+  const suggestedCategories = useMemo(() => {
+    const q = category.trim().toLowerCase();
+    if (!q) return existingCategories;
+    return existingCategories.filter((c) => c.toLowerCase().includes(q));
+  }, [category, existingCategories]);
+
+  const streakMode: StreakMode = isAllDays(daysOfWeek) ? 'calendar' : 'scheduled';
+
+  const toggleDay = (dow: number) => {
+    setDaysOfWeek((prev) => {
+      if (prev.includes(dow)) {
+        if (prev.length <= 1) return prev;
+        return prev.filter((d) => d !== dow).sort((a, b) => a - b);
+      }
+      return [...prev, dow].sort((a, b) => a - b);
+    });
+  };
+
+  const selectEveryDay = () => setDaysOfWeek([...ALL_DAYS]);
+
+  const selectScheduledDays = () => {
+    setDaysOfWeek((prev) => (isAllDays(prev) ? [...WEEKDAY_DEFAULT] : prev));
+  };
 
   const filteredIcons = useMemo(() => {
     const q = iconQuery.trim().toLowerCase();
@@ -96,17 +157,14 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
   }, [iconQuery]);
 
   const buildSchedule = (): HabitSchedule => {
-    const base = habit?.schedule ?? { kind: 'daily' as const };
-    if (base.kind === 'weekly') {
-      return {
-        kind: 'weekly',
-        daysOfWeek: base.daysOfWeek,
-        reminderMinutes: reminderOn ? reminderMinutes : null,
-      };
+    const reminder = reminderOn ? reminderMinutes : null;
+    if (isAllDays(daysOfWeek)) {
+      return { kind: 'daily', reminderMinutes: reminder };
     }
     return {
-      kind: 'daily',
-      reminderMinutes: reminderOn ? reminderMinutes : null,
+      kind: 'weekly',
+      daysOfWeek: [...daysOfWeek].sort((a, b) => a - b),
+      reminderMinutes: reminder,
     };
   };
 
@@ -174,10 +232,31 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
           <TextInput
             value={category}
             onChangeText={setCategory}
+            onFocus={() => setCategoryFocused(true)}
+            onBlur={() => setCategoryFocused(false)}
             placeholder="e.g. Focus"
             placeholderTextColor={colors.textMuted}
             style={styles.input}
           />
+          {existingCategories.length > 0 ? (
+            <View style={styles.categoryRow}>
+              {(categoryFocused || category.length > 0 ? suggestedCategories : existingCategories).map(
+                (item) => {
+                  const active = category.trim().toLowerCase() === item.toLowerCase();
+                  return (
+                    <Pressable
+                      key={item}
+                      onPress={() => setCategory(item)}
+                      style={[styles.categoryChip, active && styles.categoryChipActive]}>
+                      <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                        {item}
+                      </Text>
+                    </Pressable>
+                  );
+                },
+              )}
+            </View>
+          ) : null}
 
           <Text style={styles.label}>Icon</Text>
           <View style={styles.selectedRow}>
@@ -272,19 +351,36 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
                 </>
               ) : null}
 
+              <Text style={styles.label}>Schedule</Text>
+              <View style={styles.weekdayRow}>
+                {WEEKDAY_OPTIONS.map(({ dow, label }) => {
+                  const active = daysOfWeek.includes(dow);
+                  return (
+                    <Pressable
+                      key={dow}
+                      onPress={() => toggleDay(dow)}
+                      style={[styles.weekdayChip, active && styles.weekdayChipActive]}>
+                      <Text style={[styles.weekdayText, active && styles.weekdayTextActive]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               <Text style={styles.label}>Streak counts</Text>
               <View style={styles.modeRow}>
                 {(
                   [
-                    { id: 'scheduled' as const, label: 'Scheduled days' },
-                    { id: 'calendar' as const, label: 'Every day' },
+                    { id: 'scheduled' as const, label: 'Scheduled days', onPress: selectScheduledDays },
+                    { id: 'calendar' as const, label: 'Every day', onPress: selectEveryDay },
                   ] as const
                 ).map((opt) => {
                   const active = streakMode === opt.id;
                   return (
                     <Pressable
                       key={opt.id}
-                      onPress={() => setStreakMode(opt.id)}
+                      onPress={opt.onPress}
                       style={[styles.modeChip, active && styles.modeChipActive]}>
                       <Text style={[styles.modeText, active && styles.modeTextActive]}>
                         {opt.label}
@@ -375,6 +471,56 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 2,
     ...typography.body,
     color: colors.text,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  categoryChip: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
+  },
+  categoryChipText: {
+    ...typography.data,
+    color: colors.textMuted,
+  },
+  categoryChipTextActive: {
+    color: colors.accent,
+  },
+  weekdayRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  weekdayChip: {
+    minWidth: 44,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  weekdayChipActive: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
+  },
+  weekdayText: {
+    ...typography.data,
+    color: colors.textMuted,
+  },
+  weekdayTextActive: {
+    color: colors.accent,
+    fontFamily: typography.bodyMedium.fontFamily,
   },
   selectedRow: {
     flexDirection: 'row',

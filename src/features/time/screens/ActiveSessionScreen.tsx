@@ -146,8 +146,6 @@ export function ActiveSessionScreen() {
   if (pomodoro) {
     const phaseMs = phaseDurationMs(pomodoro);
     progress = phaseMs > 0 ? displayMs / phaseMs : 0;
-  } else {
-    progress = (elapsed % 3_600_000) / 3_600_000;
   }
 
   const modeLabel = paused
@@ -216,9 +214,7 @@ export function ActiveSessionScreen() {
             {pomodoro.config.focusMinutes}m · {pomodoro.config.shortBreakMinutes}m ·{' '}
             {pomodoro.config.longBreakMinutes}m
           </Text>
-        ) : (
-          <Text style={styles.config}>Counting up</Text>
-        )}
+        ) : null}
       </FadeUp>
 
       <View style={styles.actions}>
