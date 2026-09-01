@@ -24,12 +24,13 @@ Someone who wants a private, focused practice loop — deep work, movement, read
 
 ## Core loop
 
-1. Open **Habits**. Tap a habit.
-2. Choose **stopwatch** or **pomodoro** for this session (last choice remembered).
-3. Practice. A sticky bar shows the live session; tap for the full-screen timer (pause / resume / stop).
+1. Open **Habits**. Tap a habit to **quick-start** with your last timer choice (or tap the timer icon to customize).
+2. Choose **stopwatch** or **pomodoro** when customizing (last choice remembered per habit).
+3. Practice. A sticky bar shows the live session; tap for the full-screen timer (pause / resume / stop). Screen stays awake.
 4. Stop → habit counts as complete for today → optional short journal reflection.
-5. **Journal** shows today’s timeline. Missed tracking? **Log habit** to backfill duration without running the timer.
+5. **Journal** shows today’s timeline and day stats. Missed tracking? **Log habit** to backfill duration without running the timer.
 6. **Analytics** shows a year of practice for a selected habit (52-week heatmap, totals, streak).
+7. **Export backup** from the Habits share icon when you want a JSON copy of all data.
 
 ## Screens to design around
 
@@ -42,7 +43,7 @@ Someone who wants a private, focused practice loop — deep work, movement, read
 | Journal entry (stack) | Read/edit a single entry |
 | Global chrome | Sticky active-session bar above tabs; post-stop journal prompt sheet |
 
-**Not in the product (v1):** Today tab, separate Time tab, accounts, sync, social, widgets, export.
+**Not in the product (v1):** Today tab, separate Time tab, accounts, sync, social, widgets, import restore.
 
 ## Visual direction
 
@@ -52,7 +53,7 @@ Treat Cadence like a **calm instrument**, not neon SaaS.
 - **Background:** Near-black charcoal (`#121212`), elevated surfaces slightly lighter.
 - **Accent:** Champagne silver (`#C2B9AD`) — primary actions and live session emphasis.
 - **Text:** Warm off-white (`#D6D2CC`); muted secondary (`#7A7670`).
-- **Typography:** DM Sans for UI chrome; Literata for journal / paper surfaces.
+- **Typography:** Instrument Sans for UI chrome; Geist for journal entries and data labels.
 - **Icons:** Simple Lucide line icons on habits (not emoji-as-brand).
 - **Journal:** Paper-like reading surface; timeline of the day, not a chat feed.
 - **Session:** Full-bleed atmosphere — cooler for focus, warmer for breaks; circular progress ring; avoid dashboard chrome.
@@ -72,9 +73,10 @@ Short, grounded, human. Prefer “Start practice” / “Log habit” / “What 
 ## Habits (what users configure)
 
 - Name, optional category, Lucide icon
-- Optional daily reminder (local notification)
+- Weekday schedule (daily when all days selected) and optional reminder (local notification)
 - Streak mode: every calendar day vs scheduled days; optional grace days
-- Timer mode is **not** a fixed habit setting — chosen when starting each session
+- **Skip today** from the habit menu when a due day won’t happen — honest miss, not a fake session
+- Timer mode is **not** a fixed habit setting — chosen when customizing a session; quick-start uses last choice
 
 ## Privacy stance (product)
 

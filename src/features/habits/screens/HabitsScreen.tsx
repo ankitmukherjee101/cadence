@@ -28,8 +28,10 @@ import {
   useHabitLogsForDate,
   useHabits,
   useRunningSession,
+  useSkipHabitForToday,
   useStartHabitSession,
   useUnarchiveHabit,
+  useUnskipHabitForToday,
 } from '@/src/features/habits/hooks';
 import { hapticSelection } from '@/src/shared/lib/haptics';
 import { exportAndShareCadenceBackup } from '@/src/shared/lib/backup';
@@ -81,6 +83,8 @@ export function HabitsScreen() {
   const startSession = useStartHabitSession();
   const archiveHabit = useArchiveHabit();
   const unarchiveHabit = useUnarchiveHabit();
+  const skipHabit = useSkipHabitForToday();
+  const unskipHabit = useUnskipHabitForToday();
 
   const createOpen = useUiStore((s) => s.createHabitOpen);
   const setCreateOpen = useUiStore((s) => s.setCreateHabitOpen);
@@ -94,6 +98,11 @@ export function HabitsScreen() {
 
   const completedIds = useMemo(
     () => new Set((logs ?? []).filter((l) => l.status === 'completed').map((l) => l.habitId)),
+    [logs],
+  );
+
+  const skippedIds = useMemo(
+    () => new Set((logs ?? []).filter((l) => l.status === 'skipped').map((l) => l.habitId)),
     [logs],
   );
 
@@ -194,6 +203,38 @@ export function HabitsScreen() {
       return;
     }
     setSessionHabit(habit);
+  };
+
+  const confirmSkip = (habit: Habit) => {
+    Alert.alert(
+      'Skip today?',
+      `${habit.name} will be marked skipped for today. You can still practice if you change your mind.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Skip',
+          onPress: () => {
+            void (async () => {
+              try {
+                await skipHabit.mutateAsync({ habitId: habit.id, date: today });
+              } catch (err) {
+                Alert.alert('Couldn’t skip', err instanceof Error ? err.message : 'Unknown error');
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
+
+  const onUnskip = (habit: Habit) => {
+    void (async () => {
+      try {
+        await unskipHabit.mutateAsync({ habitId: habit.id, date: today });
+      } catch (err) {
+        Alert.alert('Couldn’t unskip', err instanceof Error ? err.message : 'Unknown error');
+      }
+    })();
   };
 
   const onExport = async () => {
@@ -329,10 +370,13 @@ export function HabitsScreen() {
             <HabitRow
               habit={item}
               completedToday={completedIds.has(item.id)}
+              skippedToday={skippedIds.has(item.id)}
               scheduledToday={scheduledToday}
               disabled={startSession.isPending}
               onStartPress={() => void onQuickStart(item)}
               onCustomizePress={() => onCustomizeStart(item)}
+              onSkipToday={() => confirmSkip(item)}
+              onUnskipToday={() => onUnskip(item)}
               onEdit={() => openEdit(item.id)}
               onArchive={() => confirmArchive(item)}
             />

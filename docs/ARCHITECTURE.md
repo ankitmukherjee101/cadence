@@ -37,9 +37,11 @@ The unifying concept is the **Day**: a chronological timeline that merges timed 
 | Ephemeral UI state | Zustand | Sheets, journal prompt, habit form, analytics selection |
 | Session prefs | AsyncStorage | Last stopwatch/pomodoro choice per habit |
 | Icons | Lucide (`lucide-react-native`) | Curated icon ids stored on habits |
-| Typography | DM Sans + Literata | Loaded in root layout via `@expo-google-fonts/*` |
+| Typography | Instrument Sans + Geist | Loaded in root layout via `@expo-google-fonts/*` |
 | Motion / feedback | Reanimated + `expo-haptics` | Session UI motion; light selection/success haptics |
 | Notifications | `expo-notifications` | Session phase end + habit reminders (local). Lazy-loaded; no-op in Expo Go on Android |
+| Keep awake | `expo-keep-awake` | Screen stays on during active session |
+| Export | JSON backup + share sheet | Habits header share action; `src/db/export.ts` |
 | Dates | `date-fns` + domain helpers | Local dates; weeks start Monday for analytics |
 
 ### Explicit non-goals (v1)
@@ -198,7 +200,8 @@ type Habit = {
 - Optional `reminderMinutes` (minutes from local midnight) schedules a local notification.
 - Per-habit `streak` settings drive `computeCurrentStreak` (grace + calendar vs scheduled). If today is still open, counting starts from yesterday.
 - Habit form UX: name → category → icon (searchable; first 24 until Advanced), weekday schedule picker, reminder, and streak settings. All seven weekdays selected stores a daily schedule; fewer days stores weekly.
-- Schema fields not yet exposed in UI: habit `color`, journal `mood`, `tags` table, habit-log `skipped` status.
+- Schema fields not yet exposed in UI: habit `color`, journal `mood`, `tags` table.
+- **Skip today:** habit menu marks a due day as `skipped` without faking a session; unskip removes the log. Completing a session overwrites skip with `completed`.
 
 ### 5.2 Time session
 
@@ -427,7 +430,7 @@ Detail / focus screens: `session/active` (full-screen modal), `journal/[id]`.
 ### Visual language
 
 - Dark charcoal surfaces with champagne-silver accent (`src/shared/ui/tokens.ts`).
-- Sans (DM Sans) for UI chrome; Literata for journal/paper surfaces.
+- Sans (Instrument Sans) for UI chrome; Geist for journal entries and data labels.
 - Active session uses atmosphere backgrounds (cool focus / warm break) and `SessionRing` progress.
 
 ### State split
@@ -444,7 +447,7 @@ Detail / focus screens: `session/active` (full-screen modal), `journal/[id]`.
 
 ### 9.1 App bootstrap
 
-1. Load custom fonts (DM Sans, Literata, SpaceMono).
+1. Load custom fonts (Instrument Sans, Geist).
 2. Mount React Query provider (`AppProviders`).
 3. Open SQLite / Drizzle client (`DatabaseProvider`) and run migrations.
 4. Mount `SessionLifecycleProvider` (notification permission warm-up + AppState resume).
@@ -516,7 +519,7 @@ Detail / focus screens: `session/active` (full-screen modal), `journal/[id]`.
 - Habit reminder notifications (optional daily/weekly via schedule; Expo Go Android no-op)
 - Last session prefs per habit (AsyncStorage)
 - Haptics + session atmosphere / ring UI
-- DM Sans + Literata typography
+- Instrument Sans + Geist typography
 - Removed legacy Habits/Time tabs and Today/Time placeholder screens
 - Habit form: name / category / icon, Advanced for reminder + streak
 
@@ -551,7 +554,7 @@ Deferred within polish:
 | Timer settings | Per session + remembered prefs | Different sessions can vary; last choice reduces friction |
 | Pause | DB `paused_at` + `paused_total_ms` | Survives process death; wall-clock safe |
 | Icons | Lucide icon ids | Consistent cross-platform glyphs; curated allowlist |
-| Typography | DM Sans + Literata | Instrument UI + paper journal voice |
+| Typography | Instrument Sans + Geist | UI chrome + journal/data voice |
 | Session background | Wall clock + local notifications | Reliable duration without continuous background JS |
 | Notifications in Expo Go (Android) | Lazy no-op | Package throws on import after SDK 53; use a dev build for alerts |
 | Streak | Per-habit mode + grace | Scheduled vs calendar days; optional miss allowance |
@@ -560,7 +563,10 @@ Deferred within polish:
 | Day as composition | Yes | Makes Cadence one product instead of three |
 | Application layer | Query hooks + repos | Avoid a separate use-case folder until complexity demands it |
 | Weekly schedule UX | Weekday picker in habit form | Daily when all days selected; weekly otherwise |
-| Schema-only fields | tags / mood / color / skip | Kept for forward compatibility; no product surface yet |
+| Schema-only fields | tags / mood / color | Kept for forward compatibility; no product surface yet |
+| Skip today | Habit row menu | Marks `skipped` log; does not count as completed |
+| Quick start | Tap habit row | Last timer mode from AsyncStorage; timer icon opens sheet |
+| Export backup | JSON share | All SQLite tables via Habits header |
 
 ---
 

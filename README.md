@@ -8,19 +8,23 @@ Data stays on your device in SQLite. There is no account, no cloud sync, and no 
 
 ### Habits
 - Create habits with Lucide icons, categories, optional daily or weekly reminders, and streak settings (calendar vs scheduled days, optional grace days). Weekly schedules use a weekday picker in the habit form.
-- Start a **stopwatch** or **pomodoro** session from the habit list; mode and lengths are chosen per session (last choice remembered per habit).
+- **Tap a habit** to quick-start with your last stopwatch/pomodoro choice; use the timer icon to customize mode before starting.
+- **Skip today** from the habit menu to acknowledge a miss without faking a session (unskip or complete later overwrites it).
 - Ending a session marks the habit complete for that local date.
+- **Export backup** (share icon) saves all local data as JSON.
 - Archive / restore habits without losing history.
 
 ### Sessions
 - One running session at a time, with a sticky bar above the tab bar.
-- Full-screen active session UI with pause/resume, pomodoro phase automation (focus → short break → … → long break → complete), and phase-end local notifications.
+- Full-screen active session UI with pause/resume, pomodoro phase automation (focus → short break → … → long break → complete), skip-break controls, and phase-end local notifications.
+- Screen stays awake while the active session is open.
 - Sessions survive app kills: state lives in SQLite and time is wall-clock derived.
 - After stop, an optional journal prompt for a short reflection.
 
 ### Journal
 - Day timeline merging practice sessions and free writes (paper-styled UI).
-- Manual entries, date navigation, and entry detail editing.
+- Day summary stats (practice time, habits due, entry count).
+- Manual entries, date navigation, entry editing, and deletion.
 - Session-linked reflections nest into that day’s practice card.
 - **Log habit** backfill: record a finished session (habit + duration) for a past or current date without running the live timer.
 - Delete a completed session from the timeline (clears the day’s habit log if nothing else remains).
@@ -42,6 +46,7 @@ Data stays on your device in SQLite. There is no account, no cloud sync, and no 
 | Icons | Lucide |
 | Fonts | Instrument Sans + Geist |
 | Motion / haptics | Reanimated, `expo-haptics` |
+| Keep awake | `expo-keep-awake` (active session) |
 | Notifications | `expo-notifications` (local; see notes below) |
 
 Full engineering detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Product brief for design tools: [docs/PRODUCT.md](docs/PRODUCT.md).
@@ -123,11 +128,12 @@ cadence/
 
 ## How the core loop works
 
-1. **Habits** tab lists active habits. Tap one → choose stopwatch or pomodoro → session starts.
+1. **Habits** tab lists active habits. Tap one to quick-start (or the timer icon to choose mode).
 2. While running, the global bar (and Active Session screen) show elapsed or phase remaining. Pause freezes the clock; resume continues without losing remaining pomodoro time.
 3. Stop (or finish the pomodoro cycle) → habit marked complete for that local date → optional journal reflection.
-4. **Journal** shows the day’s timeline. You can also **Log habit** to backfill time you already practiced.
+4. **Journal** shows the day’s timeline and summary stats. You can also **Log habit** to backfill time you already practiced.
 5. **Analytics** shows the long view for a selected habit.
+6. **Export** from the Habits header share icon to back up all data as JSON.
 
 Calendar dates are always **device-local** `YYYY-MM-DD`. Timestamps in SQLite are ISO-8601 UTC.
 
@@ -155,12 +161,13 @@ Cadence uses a dark charcoal UI with a champagne-silver accent — closer to a c
 
 Phases 0–5 (foundation through polish) are implemented for the core product loop:
 
-- Habits hub + live sessions (stopwatch / pomodoro, pause, notifications)
-- Journal day timeline + backfill + reflections
+- Habits hub + live sessions (stopwatch / pomodoro, pause, skip break, keep awake)
+- Skip today / unskip from habit menu
+- Journal day timeline + backfill + reflections + delete entries
 - Analytics heatmap and streaks
-- Archive, empty states, session prefs, haptics
+- JSON export backup, archive, empty states, session prefs, haptics
 
-Still deferred: cloud sync / accounts, export backup, automated tests, home-screen widgets.
+Still deferred: cloud sync / accounts, import restore, automated tests, home-screen widgets.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the decision log, schema, and coding conventions.
 

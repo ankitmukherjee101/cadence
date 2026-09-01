@@ -10,10 +10,13 @@ import { colors, radii, spacing, typography } from '@/src/shared/ui/tokens';
 type Props = {
   habit: Habit;
   completedToday: boolean;
+  skippedToday?: boolean;
   scheduledToday?: boolean;
   disabled?: boolean;
   onStartPress: () => void;
   onCustomizePress: () => void;
+  onSkipToday?: () => void;
+  onUnskipToday?: () => void;
   onEdit: () => void;
   onArchive: () => void;
 };
@@ -21,28 +24,57 @@ type Props = {
 export function HabitRow({
   habit,
   completedToday,
+  skippedToday = false,
   scheduledToday = true,
   disabled,
   onStartPress,
   onCustomizePress,
+  onSkipToday,
+  onUnskipToday,
   onEdit,
   onArchive,
 }: Props) {
   const openMenu = () => {
     void hapticSelection();
-    Alert.alert(habit.name, undefined, [
-      { text: 'Edit', onPress: onEdit },
+    const actions: Parameters<typeof Alert.alert>[2] = [{ text: 'Edit', onPress: onEdit }];
+
+    if (scheduledToday && !completedToday && !skippedToday && onSkipToday) {
+      actions.push({ text: 'Skip today', onPress: onSkipToday });
+    }
+    if (skippedToday && onUnskipToday) {
+      actions.push({ text: 'Unskip', onPress: onUnskipToday });
+    }
+
+    actions.push(
       { text: 'Archive', style: 'destructive', onPress: onArchive },
       { text: 'Cancel', style: 'cancel' },
-    ]);
+    );
+
+    Alert.alert(habit.name, undefined, actions);
   };
 
   return (
-    <View style={[styles.row, completedToday && styles.rowDone, !scheduledToday && styles.rowRest]}>
+    <View
+      style={[
+        styles.row,
+        completedToday && styles.rowDone,
+        skippedToday && styles.rowSkipped,
+        !scheduledToday && styles.rowRest,
+      ]}>
       <Checkbox
         checked={completedToday}
-        accessibilityLabel={completedToday ? `${habit.name} done today` : habit.name}
-        accessibilityHint="Complete by starting a timed session"
+        accessibilityLabel={
+          completedToday
+            ? `${habit.name} done today`
+            : skippedToday
+              ? `${habit.name} skipped today`
+              : habit.name
+        }
+        accessibilityHint={
+          completedToday || skippedToday
+            ? undefined
+            : 'Complete by starting a timed session, or skip from the menu'
+        }
       />
       <View style={styles.iconWrap}>
         <HabitIcon
@@ -64,6 +96,8 @@ export function HabitRow({
         </Text>
         {completedToday ? (
           <Text style={styles.sub}>Done today</Text>
+        ) : skippedToday ? (
+          <Text style={styles.sub}>Skipped today</Text>
         ) : !scheduledToday ? (
           <Text style={styles.sub}>Rest day</Text>
         ) : habit.category ? (
@@ -116,6 +150,9 @@ const styles = StyleSheet.create({
   },
   rowDone: {
     opacity: 0.72,
+  },
+  rowSkipped: {
+    opacity: 0.62,
   },
   rowRest: {
     opacity: 0.55,

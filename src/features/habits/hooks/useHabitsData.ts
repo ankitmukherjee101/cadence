@@ -110,6 +110,38 @@ export function useUnarchiveHabit() {
   });
 }
 
+export function useSkipHabitForToday() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ habitId, date }: { habitId: string; date: LocalDate }) =>
+      habitsRepo().upsertLog({ habitId, date, status: 'skipped' }),
+    onSuccess: async (_, { habitId, date }) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.habits }),
+        qc.invalidateQueries({ queryKey: queryKeys.habitLogsToday(date) }),
+        qc.invalidateQueries({ queryKey: queryKeys.day(date) }),
+        qc.invalidateQueries({ queryKey: queryKeys.habitAnalytics(habitId) }),
+      ]);
+    },
+  });
+}
+
+export function useUnskipHabitForToday() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ habitId, date }: { habitId: string; date: LocalDate }) =>
+      habitsRepo().deleteLog(habitId, date),
+    onSuccess: async (_, { habitId, date }) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.habits }),
+        qc.invalidateQueries({ queryKey: queryKeys.habitLogsToday(date) }),
+        qc.invalidateQueries({ queryKey: queryKeys.day(date) }),
+        qc.invalidateQueries({ queryKey: queryKeys.habitAnalytics(habitId) }),
+      ]);
+    },
+  });
+}
+
 export function useRunningSession() {
   return useQuery({
     queryKey: queryKeys.runningSession,

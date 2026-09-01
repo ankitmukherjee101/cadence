@@ -18,9 +18,11 @@ export {
   usePauseSession,
   useResumeSession,
   useRunningSession,
+  useSkipHabitForToday,
   useStartHabitSession,
   useStopHabitSession,
   useUnarchiveHabit,
+  useUnskipHabitForToday,
   useUpdateHabit,
   useUpdateJournalEntry,
 } from './useHabitsData';

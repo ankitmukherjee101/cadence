@@ -133,6 +133,7 @@ function FreeJournalRow({
 
 function HabitLogRow({ event }: { event: Extract<DayEvent, { type: 'habit_log' }> }) {
   const data = event.data;
+  const label = data.status === 'skipped' ? 'Skipped' : 'Completed';
   return (
     <View style={styles.sessionCard}>
       <View style={styles.sessionHeader}>
@@ -142,7 +143,7 @@ function HabitLogRow({ event }: { event: Extract<DayEvent, { type: 'habit_log' }
           <Text style={styles.sessionTitle} numberOfLines={1}>
             {data.habitName}
           </Text>
-          <Text style={styles.sessionDuration}>Completed</Text>
+          <Text style={styles.sessionDuration}>{label}</Text>
         </View>
       </View>
     </View>

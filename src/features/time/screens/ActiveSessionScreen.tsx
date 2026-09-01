@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useKeepAwake } from 'expo-keep-awake';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
 
@@ -30,6 +31,7 @@ import { SessionRing } from '@/src/shared/ui/SessionRing';
 import { colors, fonts, radii, spacing, typography } from '@/src/shared/ui/tokens';
 
 export function ActiveSessionScreen() {
+  useKeepAwake();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { data: session } = useRunningSession();
