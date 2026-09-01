@@ -37,6 +37,7 @@ import { hapticSelection } from '@/src/shared/lib/haptics';
 import { exportAndShareCadenceBackup } from '@/src/shared/lib/backup';
 import { buildStartChoiceFromPref } from '@/src/shared/lib/quick-start';
 import { EmptyState } from '@/src/shared/ui/EmptyState';
+import { ActionSheet } from '@/src/shared/ui/ActionSheet';
 import { FadeDown } from '@/src/shared/ui/motion';
 import { colors, spacing, typography } from '@/src/shared/ui/tokens';
 import { useUiStore } from '@/src/store/ui-store';
@@ -44,6 +45,10 @@ import { useUiStore } from '@/src/store/ui-store';
 const ACTIVE_SESSION_HREF = '/session/active' as Href;
 const TAB_BAR_BASE = 49;
 const UNCATEGORIZED_LABEL = 'Uncategorized';
+
+type PendingConfirm =
+  | { kind: 'skip'; habit: Habit }
+  | { kind: 'archive'; habit: Habit };
 
 type HabitSection = {
   title: string;
@@ -95,6 +100,7 @@ export function HabitsScreen() {
   const [sessionHabit, setSessionHabit] = useState<Habit | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   const completedIds = useMemo(
     () => new Set((logs ?? []).filter((l) => l.status === 'completed').map((l) => l.habitId)),
@@ -140,29 +146,7 @@ export function HabitsScreen() {
   };
 
   const confirmArchive = (habit: Habit) => {
-    Alert.alert(
-      'Archive habit?',
-      `${habit.name} will be hidden from your list. History stays on device — you can restore it later.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              try {
-                await archiveHabit.mutateAsync(habit.id);
-              } catch (err) {
-                Alert.alert(
-                  'Couldn’t archive',
-                  err instanceof Error ? err.message : 'Unknown error',
-                );
-              }
-            })();
-          },
-        },
-      ],
-    );
+    setPendingConfirm({ kind: 'archive', habit });
   };
 
   const showForm = formOpen || createOpen;
@@ -206,25 +190,26 @@ export function HabitsScreen() {
   };
 
   const confirmSkip = (habit: Habit) => {
-    Alert.alert(
-      'Skip today?',
-      `${habit.name} will be marked skipped for today. You can still practice if you change your mind.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Skip',
-          onPress: () => {
-            void (async () => {
-              try {
-                await skipHabit.mutateAsync({ habitId: habit.id, date: today });
-              } catch (err) {
-                Alert.alert('Couldn’t skip', err instanceof Error ? err.message : 'Unknown error');
-              }
-            })();
-          },
-        },
-      ],
-    );
+    setPendingConfirm({ kind: 'skip', habit });
+  };
+
+  const runPendingConfirm = () => {
+    if (!pendingConfirm) return;
+    const { kind, habit } = pendingConfirm;
+    void (async () => {
+      try {
+        if (kind === 'skip') {
+          await skipHabit.mutateAsync({ habitId: habit.id, date: today });
+        } else {
+          await archiveHabit.mutateAsync(habit.id);
+        }
+      } catch (err) {
+        Alert.alert(
+          kind === 'skip' ? 'Couldn’t skip' : 'Couldn’t archive',
+          err instanceof Error ? err.message : 'Unknown error',
+        );
+      }
+    })();
   };
 
   const onUnskip = (habit: Habit) => {
@@ -392,6 +377,30 @@ export function HabitsScreen() {
         pending={startSession.isPending}
         onClose={() => setSessionHabit(null)}
         onStart={(choice) => void onConfirmStart(choice)}
+      />
+
+      <ActionSheet
+        visible={pendingConfirm !== null}
+        title={pendingConfirm?.kind === 'skip' ? 'Skip today?' : 'Archive habit?'}
+        message={
+          pendingConfirm?.kind === 'skip'
+            ? `${pendingConfirm.habit.name} will be marked skipped for today. You can still practice if you change your mind.`
+            : pendingConfirm
+              ? `${pendingConfirm.habit.name} will be hidden from your list. History stays on device — you can restore it later.`
+              : undefined
+        }
+        actions={
+          pendingConfirm
+            ? [
+                {
+                  label: pendingConfirm.kind === 'skip' ? 'Skip' : 'Archive',
+                  destructive: true,
+                  onPress: runPendingConfirm,
+                },
+              ]
+            : []
+        }
+        onClose={() => setPendingConfirm(null)}
       />
     </View>
   );

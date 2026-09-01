@@ -23,7 +23,6 @@ Data stays on your device in SQLite. There is no account, no cloud sync, and no 
 
 ### Journal
 - Day timeline merging practice sessions and free writes (paper-styled UI).
-- Day summary stats (practice time, habits due, entry count).
 - Manual entries, date navigation, entry editing, and deletion.
 - Session-linked reflections nest into that day’s practice card.
 - **Log habit** backfill: record a finished session (habit + duration) for a past or current date without running the live timer.

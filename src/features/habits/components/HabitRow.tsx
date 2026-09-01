@@ -1,8 +1,10 @@
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Ellipsis from 'lucide-react-native/icons/ellipsis';
 
 import type { Habit } from '@/src/domain';
 import { hapticSelection } from '@/src/shared/lib/haptics';
+import { ActionSheet, type ActionSheetItem } from '@/src/shared/ui/ActionSheet';
 import { Checkbox } from '@/src/shared/ui/Checkbox';
 import { HabitIcon, TimerActionIcon } from '@/src/shared/ui/HabitIcon';
 import { colors, radii, spacing, typography } from '@/src/shared/ui/tokens';
@@ -34,104 +36,123 @@ export function HabitRow({
   onEdit,
   onArchive,
 }: Props) {
-  const openMenu = () => {
-    void hapticSelection();
-    const actions: Parameters<typeof Alert.alert>[2] = [{ text: 'Edit', onPress: onEdit }];
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const menuActions = useMemo(() => {
+    const actions: ActionSheetItem[] = [{ label: 'Edit', onPress: onEdit }];
 
     if (scheduledToday && !completedToday && !skippedToday && onSkipToday) {
-      actions.push({ text: 'Skip today', onPress: onSkipToday });
+      actions.push({ label: 'Skip today', onPress: onSkipToday });
     }
     if (skippedToday && onUnskipToday) {
-      actions.push({ text: 'Unskip', onPress: onUnskipToday });
+      actions.push({ label: 'Unskip', onPress: onUnskipToday });
     }
 
-    actions.push(
-      { text: 'Archive', style: 'destructive', onPress: onArchive },
-      { text: 'Cancel', style: 'cancel' },
-    );
+    actions.push({ label: 'Archive', onPress: onArchive, destructive: true });
+    return actions;
+  }, [
+    scheduledToday,
+    completedToday,
+    skippedToday,
+    onSkipToday,
+    onUnskipToday,
+    onEdit,
+    onArchive,
+  ]);
 
-    Alert.alert(habit.name, undefined, actions);
+  const openMenu = () => {
+    void hapticSelection();
+    setMenuOpen(true);
   };
 
   return (
-    <View
-      style={[
-        styles.row,
-        completedToday && styles.rowDone,
-        skippedToday && styles.rowSkipped,
-        !scheduledToday && styles.rowRest,
-      ]}>
-      <Checkbox
-        checked={completedToday}
-        accessibilityLabel={
-          completedToday
-            ? `${habit.name} done today`
-            : skippedToday
-              ? `${habit.name} skipped today`
-              : habit.name
-        }
-        accessibilityHint={
-          completedToday || skippedToday
-            ? undefined
-            : 'Complete by starting a timed session, or skip from the menu'
-        }
-      />
-      <View style={styles.iconWrap}>
-        <HabitIcon
-          name={habit.icon}
-          size={20}
-          color={completedToday ? colors.accentMuted : colors.accent}
-          strokeWidth={1.5}
-        />
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={habit.name}
-        onPress={onStartPress}
-        onLongPress={openMenu}
-        disabled={disabled}
-        style={({ pressed }) => [styles.meta, pressed && styles.pressed]}>
-        <Text style={[styles.name, completedToday && styles.nameDone]} numberOfLines={1}>
-          {habit.name}
-        </Text>
-        {completedToday ? (
-          <Text style={styles.sub}>Done today</Text>
-        ) : skippedToday ? (
-          <Text style={styles.sub}>Skipped today</Text>
-        ) : !scheduledToday ? (
-          <Text style={styles.sub}>Rest day</Text>
-        ) : habit.category ? (
-          <Text style={styles.sub} numberOfLines={1}>
-            {habit.category}
-          </Text>
-        ) : null}
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Options for ${habit.name}`}
-        onPress={openMenu}
-        hitSlop={8}
-        style={styles.moreBtn}>
-        <Ellipsis size={18} color={colors.textMuted} strokeWidth={1.5} />
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Timer options for ${habit.name}`}
-        accessibilityHint="Choose stopwatch or pomodoro settings"
-        disabled={disabled}
-        onPress={() => {
-          void hapticSelection();
-          onCustomizePress();
-        }}
-        hitSlop={8}
-        style={({ pressed }) => [
-          styles.timerBtn,
-          pressed && styles.timerBtnPressed,
-          disabled && styles.disabled,
+    <>
+      <View
+        style={[
+          styles.row,
+          completedToday && styles.rowDone,
+          skippedToday && styles.rowSkipped,
+          !scheduledToday && styles.rowRest,
         ]}>
-        <TimerActionIcon size={18} color={colors.accent} strokeWidth={1.5} />
-      </Pressable>
-    </View>
+        <Checkbox
+          checked={completedToday}
+          accessibilityLabel={
+            completedToday
+              ? `${habit.name} done today`
+              : skippedToday
+                ? `${habit.name} skipped today`
+                : habit.name
+          }
+          accessibilityHint={
+            completedToday || skippedToday
+              ? undefined
+              : 'Complete by starting a timed session, or skip from the menu'
+          }
+        />
+        <View style={styles.iconWrap}>
+          <HabitIcon
+            name={habit.icon}
+            size={20}
+            color={completedToday ? colors.accentMuted : colors.accent}
+            strokeWidth={1.5}
+          />
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={habit.name}
+          onPress={onStartPress}
+          onLongPress={openMenu}
+          disabled={disabled}
+          style={({ pressed }) => [styles.meta, pressed && styles.pressed]}>
+          <Text style={[styles.name, completedToday && styles.nameDone]} numberOfLines={1}>
+            {habit.name}
+          </Text>
+          {completedToday ? (
+            <Text style={styles.sub}>Done today</Text>
+          ) : skippedToday ? (
+            <Text style={styles.sub}>Skipped today</Text>
+          ) : !scheduledToday ? (
+            <Text style={styles.sub}>Rest day</Text>
+          ) : habit.category ? (
+            <Text style={styles.sub} numberOfLines={1}>
+              {habit.category}
+            </Text>
+          ) : null}
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Options for ${habit.name}`}
+          onPress={openMenu}
+          hitSlop={8}
+          style={styles.moreBtn}>
+          <Ellipsis size={18} color={colors.textMuted} strokeWidth={1.5} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Timer options for ${habit.name}`}
+          accessibilityHint="Choose stopwatch or pomodoro settings"
+          disabled={disabled}
+          onPress={() => {
+            void hapticSelection();
+            onCustomizePress();
+          }}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.timerBtn,
+            pressed && styles.timerBtnPressed,
+            disabled && styles.disabled,
+          ]}>
+          <TimerActionIcon size={18} color={colors.accent} strokeWidth={1.5} />
+        </Pressable>
+      </View>
+
+      <ActionSheet
+        visible={menuOpen}
+        title={habit.name}
+        actions={menuActions}
+        onClose={() => setMenuOpen(false)}
+      />
+    </>
   );
 }
 

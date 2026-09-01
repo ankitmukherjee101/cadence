@@ -28,7 +28,7 @@ Someone who wants a private, focused practice loop — deep work, movement, read
 2. Choose **stopwatch** or **pomodoro** when customizing (last choice remembered per habit).
 3. Practice. A sticky bar shows the live session; tap for the full-screen timer (pause / resume / stop). Screen stays awake.
 4. Stop → habit counts as complete for today → optional short journal reflection.
-5. **Journal** shows today’s timeline and day stats. Missed tracking? **Log habit** to backfill duration without running the timer.
+5. **Journal** shows today’s timeline. Missed tracking? **Log habit** to backfill duration without running the timer.
 6. **Analytics** shows a year of practice for a selected habit (52-week heatmap, totals, streak).
 7. **Export backup** from the Habits share icon when you want a JSON copy of all data.
 

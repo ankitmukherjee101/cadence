@@ -19,8 +19,8 @@ import PenLine from 'lucide-react-native/icons/pen-line';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import CalendarDays from 'lucide-react-native/icons/calendar-days';
+import Ellipsis from 'lucide-react-native/icons/ellipsis';
 import Timer from 'lucide-react-native/icons/timer';
-import Trash2 from 'lucide-react-native/icons/trash-2';
 
 import type { DayEvent, LocalDate } from '@/src/domain';
 import {
@@ -32,6 +32,7 @@ import {
 } from '@/src/domain';
 import { LogHabitSheet } from '@/src/features/journal/components/LogHabitSheet';
 import { useCreateJournalEntry, useDaySummary, useDeleteSession } from '@/src/features/habits/hooks';
+import { ActionSheet } from '@/src/shared/ui/ActionSheet';
 import { Button } from '@/src/shared/ui/Button';
 import { HabitIcon } from '@/src/shared/ui/HabitIcon';
 import { FadeDown } from '@/src/shared/ui/motion';
@@ -54,61 +55,76 @@ function SessionCard({
   onOpenJournal,
   onAddNote,
   onDelete,
-  deleting,
 }: {
   event: Extract<DayEvent, { type: 'time_session' }>;
   onOpenJournal?: (id: string) => void;
   onAddNote?: () => void;
   onDelete?: (sessionId: string) => void;
-  deleting?: boolean;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const data = event.data;
-  const canDelete = Boolean(data.endedAt && onDelete);
   const duration = data.endedAt ? formatDurationShort(sessionDurationMs(data)) : 'Running';
   const journal = data.journal;
+  const canAddNote = Boolean(data.endedAt && onAddNote && !journal);
+  const canDelete = Boolean(data.endedAt && onDelete);
+  const hasMenu = canAddNote || canDelete;
 
   return (
-    <View style={styles.sessionCard}>
-      <View style={styles.sessionHeader}>
-        <View style={styles.sessionMetaRow}>
-          <Text style={styles.cardTime}>{format(new Date(event.at), 'h:mm a')}</Text>
-          {canDelete ? (
-            <Pressable
-              onPress={() => onDelete?.(data.id)}
-              disabled={deleting}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Delete session">
-              <Trash2 size={16} color={colors.danger} strokeWidth={1.75} />
-            </Pressable>
-          ) : null}
+    <>
+      <View style={styles.sessionCard}>
+        <View style={styles.sessionHeader}>
+          <View style={styles.sessionMetaRow}>
+            <Text style={styles.cardTime}>{format(new Date(event.at), 'h:mm a')}</Text>
+            {hasMenu ? (
+              <Pressable
+                onPress={() => setMenuOpen(true)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Session options">
+                <Ellipsis size={18} color={colors.textMuted} strokeWidth={1.5} />
+              </Pressable>
+            ) : null}
+          </View>
+          <View style={styles.sessionTitleRow}>
+            <HabitIcon name={data.habitIcon} size={18} color={colors.accent} />
+            <Text style={styles.sessionTitle} numberOfLines={1}>
+              {data.habitName ?? data.label}
+            </Text>
+            <Text style={styles.sessionDuration}>{duration}</Text>
+          </View>
         </View>
-        <View style={styles.sessionTitleRow}>
-          <HabitIcon name={data.habitIcon} size={18} color={colors.accent} />
-          <Text style={styles.sessionTitle} numberOfLines={1}>
-            {data.habitName ?? data.label}
-          </Text>
-          <Text style={styles.sessionDuration}>{duration}</Text>
-        </View>
+        {journal ? (
+          <Pressable
+            onPress={() => onOpenJournal?.(journal.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Open journal note">
+            <Text style={styles.nestedJournal} numberOfLines={6}>
+              {journal.body}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
-      {journal ? (
-        <Pressable
-          onPress={() => onOpenJournal?.(journal.id)}
-          accessibilityRole="button"
-          accessibilityLabel="Open journal note">
-          <Text style={styles.nestedJournal} numberOfLines={6}>
-            {journal.body}
-          </Text>
-        </Pressable>
-      ) : data.endedAt && onAddNote ? (
-        <Pressable
-          onPress={onAddNote}
-          accessibilityRole="button"
-          accessibilityLabel="Add session note">
-          <Text style={styles.addNote}>Add note</Text>
-        </Pressable>
-      ) : null}
-    </View>
+
+      <ActionSheet
+        visible={menuOpen}
+        title={data.habitName ?? data.label}
+        actions={[
+          ...(canAddNote
+            ? [{ label: 'Add note', onPress: () => onAddNote?.() }]
+            : []),
+          ...(canDelete
+            ? [
+                {
+                  label: 'Delete session',
+                  destructive: true,
+                  onPress: () => onDelete?.(data.id),
+                },
+              ]
+            : []),
+        ]}
+        onClose={() => setMenuOpen(false)}
+      />
+    </>
   );
 }
 
@@ -155,13 +171,11 @@ function TimelineItem({
   onOpenJournal,
   onAddSessionNote,
   onDeleteSession,
-  deletingSessionId,
 }: {
   event: DayEvent;
   onOpenJournal: (id: string) => void;
   onAddSessionNote: (event: Extract<DayEvent, { type: 'time_session' }>) => void;
   onDeleteSession: (sessionId: string) => void;
-  deletingSessionId?: string | null;
 }) {
   if (event.type === 'time_session') {
     return (
@@ -170,7 +184,6 @@ function TimelineItem({
         onOpenJournal={onOpenJournal}
         onAddNote={() => onAddSessionNote(event)}
         onDelete={onDeleteSession}
-        deleting={deletingSessionId === event.data.id}
       />
     );
   }
@@ -344,6 +357,7 @@ export function JournalScreen() {
   const [newOpen, setNewOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [sessionNoteTarget, setSessionNoteTarget] = useState<SessionNoteTarget | null>(null);
+  const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null);
   const { data: summary, isLoading } = useDaySummary(date);
   const deleteSession = useDeleteSession();
 
@@ -364,30 +378,20 @@ export function JournalScreen() {
     });
   };
 
-  const confirmDeleteSession = (sessionId: string) => {
-    Alert.alert(
-      'Delete session?',
-      'This removes the timed practice from this day. Linked notes stay on the timeline as standalone entries.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              try {
-                await deleteSession.mutateAsync(sessionId);
-              } catch (err) {
-                Alert.alert(
-                  'Couldn’t delete',
-                  err instanceof Error ? err.message : 'Unknown error',
-                );
-              }
-            })();
-          },
-        },
-      ],
-    );
+  const requestDeleteSession = (sessionId: string) => {
+    setPendingDeleteSessionId(sessionId);
+  };
+
+  const runDeleteSession = () => {
+    if (!pendingDeleteSessionId) return;
+    const sessionId = pendingDeleteSessionId;
+    void (async () => {
+      try {
+        await deleteSession.mutateAsync(sessionId);
+      } catch (err) {
+        Alert.alert('Couldn’t delete', err instanceof Error ? err.message : 'Unknown error');
+      }
+    })();
   };
 
   return (
@@ -448,22 +452,6 @@ export function JournalScreen() {
         </View>
       </View>
 
-      {summary && !isLoading ? (
-        <View style={styles.dayStats}>
-          <Text style={styles.dayStatsText}>
-            {summary.timeStats.totalMs > 0
-              ? `${formatDurationShort(summary.timeStats.totalMs)} practiced`
-              : 'No practice logged'}
-            {summary.habitStats.due > 0
-              ? ` · ${summary.habitStats.completed} of ${summary.habitStats.due} habits`
-              : ''}
-            {summary.journalStats.entryCount > 0
-              ? ` · ${summary.journalStats.entryCount} ${summary.journalStats.entryCount === 1 ? 'entry' : 'entries'}`
-              : ''}
-          </Text>
-        </View>
-      ) : null}
-
       <View style={styles.paper}>
         {isLoading ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />
@@ -489,8 +477,7 @@ export function JournalScreen() {
                 event={item}
                 onOpenJournal={openJournal}
                 onAddSessionNote={openSessionNote}
-                onDeleteSession={confirmDeleteSession}
-                deletingSessionId={deleteSession.isPending ? deleteSession.variables : null}
+                onDeleteSession={requestDeleteSession}
               />
             )}
           />
@@ -510,6 +497,14 @@ export function JournalScreen() {
       <SessionNoteModal
         target={sessionNoteTarget}
         onClose={() => setSessionNoteTarget(null)}
+      />
+
+      <ActionSheet
+        visible={pendingDeleteSessionId !== null}
+        title="Delete session?"
+        message="This removes the timed practice from this day. Linked notes stay on the timeline as standalone entries."
+        actions={[{ label: 'Delete', destructive: true, onPress: runDeleteSession }]}
+        onClose={() => setPendingDeleteSessionId(null)}
       />
     </View>
   );
@@ -574,15 +569,6 @@ const styles = StyleSheet.create({
     color: paper.inkMuted,
     marginTop: 2,
   },
-  dayStats: {
-    paddingHorizontal: spacing.container,
-    marginBottom: spacing.md,
-  },
-  dayStatsText: {
-    ...typography.data,
-    color: paper.inkMuted,
-    textAlign: 'center',
-  },
   paper: {
     flex: 1,
     backgroundColor: paper.background,
@@ -633,13 +619,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 26,
     color: paper.ink,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: paper.line,
-  },
-  addNote: {
-    ...typography.bodyMedium,
-    color: colors.accent,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: paper.line,
