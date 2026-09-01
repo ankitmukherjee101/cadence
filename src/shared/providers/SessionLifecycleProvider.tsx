@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import { type Href, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -14,17 +15,20 @@ import {
   todayLocalDate,
   toLocalDate,
 } from '@/src/domain';
-import { ensureNotificationPermissions } from '@/src/shared/lib/notifications';
+import { ensureNotificationPermissions, setupNotificationResponseHandler } from '@/src/shared/lib/notifications';
 import { queryKeys } from '@/src/shared/lib/query-keys';
 import { useUiStore } from '@/src/store/ui-store';
 
 type Props = { children: ReactNode };
+
+const ACTIVE_SESSION_HREF = '/session/active' as Href;
 
 /**
  * Handles AppState resume for expired pomodoros and warms notification permissions once.
  */
 export function SessionLifecycleProvider({ children }: Props) {
   const { data: running } = useRunningSession();
+  const router = useRouter();
   const qc = useQueryClient();
   const setJournalPrompt = useUiStore((s) => s.setJournalPrompt);
   const advancingRef = useRef(false);
@@ -33,6 +37,16 @@ export function SessionLifecycleProvider({ children }: Props) {
   useEffect(() => {
     void ensureNotificationPermissions();
   }, []);
+
+  useEffect(() => {
+    return setupNotificationResponseHandler((payload) => {
+      if (payload.type === 'session_phase') {
+        router.push(ACTIVE_SESSION_HREF);
+        return;
+      }
+      router.push('/');
+    });
+  }, [router]);
 
   useEffect(() => {
     const onChange = (next: AppStateStatus) => {
@@ -65,7 +79,7 @@ export function SessionLifecycleProvider({ children }: Props) {
             const session = await createTimeRepository().getById(running.id);
             if (!session?.habitId) return;
             const habit = await createHabitsRepository().getById(session.habitId);
-            const date = toLocalDate(new Date(session.startedAt));
+            const date = toLocalDate(new Date(session.endedAt ?? session.startedAt));
             await Promise.all([
               qc.invalidateQueries({ queryKey: queryKeys.habits }),
               qc.invalidateQueries({ queryKey: queryKeys.habitLogsToday(todayLocalDate()) }),

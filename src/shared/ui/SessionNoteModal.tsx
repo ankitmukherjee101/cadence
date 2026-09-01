@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -47,13 +48,17 @@ export function SessionNoteModal({ target, onClose }: Props) {
   const save = async () => {
     const trimmed = body.trim();
     if (!trimmed) return;
-    await createEntry.mutateAsync({
-      date: target.date,
-      body: trimmed,
-      habitId: target.habitId,
-      sessionId: target.sessionId,
-    });
-    onClose();
+    try {
+      await createEntry.mutateAsync({
+        date: target.date,
+        body: trimmed,
+        habitId: target.habitId,
+        sessionId: target.sessionId,
+      });
+      onClose();
+    } catch (err) {
+      Alert.alert('Couldn’t save', err instanceof Error ? err.message : 'Unknown error');
+    }
   };
 
   return (

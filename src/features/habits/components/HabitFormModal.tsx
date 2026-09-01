@@ -10,6 +10,7 @@ import {
   TextInput,
   Switch,
   View,
+  Alert,
   type ScrollView as ScrollViewType,
 } from 'react-native';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
@@ -238,27 +239,31 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
     const schedule = buildSchedule();
     const streak = buildStreak();
 
-    if (habit) {
-      await updateHabit.mutateAsync({
-        id: habit.id,
-        patch: {
+    try {
+      if (habit) {
+        await updateHabit.mutateAsync({
+          id: habit.id,
+          patch: {
+            name: trimmed,
+            icon,
+            category: category.trim() || undefined,
+            schedule,
+            streak,
+          },
+        });
+      } else {
+        await createHabit.mutateAsync({
           name: trimmed,
           icon,
           category: category.trim() || undefined,
           schedule,
           streak,
-        },
-      });
-    } else {
-      await createHabit.mutateAsync({
-        name: trimmed,
-        icon,
-        category: category.trim() || undefined,
-        schedule,
-        streak,
-      });
+        });
+      }
+      onClose();
+    } catch (err) {
+      Alert.alert('Couldn’t save', err instanceof Error ? err.message : 'Unknown error');
     }
-    onClose();
   };
 
   const pending = createHabit.isPending || updateHabit.isPending;
@@ -374,7 +379,9 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
 
             <View style={styles.reminderRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.reminderTitle}>Daily reminder</Text>
+                <Text style={styles.reminderTitle}>
+                  {isAllDays(daysOfWeek) ? 'Daily reminder' : 'Weekly reminder'}
+                </Text>
                 <Text style={styles.reminderHint}>Local notification on this device</Text>
               </View>
               <Switch

@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { type Href, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PenLine from 'lucide-react-native/icons/pen-line';
@@ -26,6 +26,7 @@ import type { DayEvent, LocalDate } from '@/src/domain';
 import {
   addDays,
   formatDurationShort,
+  parseLocalDate,
   sessionDurationMs,
   todayLocalDate,
 } from '@/src/domain';
@@ -45,7 +46,7 @@ function formatDayHeading(date: LocalDate): string {
   const today = todayLocalDate();
   if (date === today) return 'Today';
   if (date === addDays(today, -1)) return 'Yesterday';
-  return format(parseISO(date), 'EEEE, MMM d');
+  return format(parseLocalDate(date), 'EEEE, MMM d');
 }
 
 function SessionCard({
@@ -187,7 +188,8 @@ function MonthCalendar({
   onSelect: (date: LocalDate) => void;
   onClose: () => void;
 }) {
-  const selectedDate = parseISO(selected);
+  const selectedDate = parseLocalDate(selected);
+  const today = todayLocalDate();
   const [cursor, setCursor] = useState(
     () => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
   );
@@ -229,29 +231,34 @@ function MonthCalendar({
           ))}
         </View>
         <View style={styles.grid}>
-          {cells.map((date, i) => (
+          {cells.map((date, i) => {
+            const isFuture = Boolean(date && date > today);
+            return (
             <Pressable
               key={date ?? `e-${i}`}
-              disabled={!date}
+              disabled={!date || isFuture}
               onPress={() => {
-                if (!date) return;
+                if (!date || isFuture) return;
                 onSelect(date);
                 onClose();
               }}
               style={[
                 styles.dayCell,
                 date === selected && styles.dayCellSelected,
-                date === todayLocalDate() && styles.dayCellToday,
+                date === today && styles.dayCellToday,
+                isFuture && styles.dayCellDisabled,
               ]}>
               <Text
                 style={[
                   styles.dayText,
                   date === selected && styles.dayTextSelected,
+                  isFuture && styles.dayTextDisabled,
                 ]}>
                 {date ? Number(date.slice(-2)) : ''}
               </Text>
             </Pressable>
-          ))}
+            );
+          })}
         </View>
       </View>
     </Modal>
@@ -281,8 +288,12 @@ function NewEntryModal({
   const save = async () => {
     const trimmed = body.trim();
     if (!trimmed) return;
-    await create.mutateAsync({ date, body: trimmed });
-    onClose();
+    try {
+      await create.mutateAsync({ date, body: trimmed });
+      onClose();
+    } catch (err) {
+      Alert.alert('Couldn’t save', err instanceof Error ? err.message : 'Unknown error');
+    }
   };
 
   return (
@@ -355,13 +366,24 @@ export function JournalScreen() {
   const confirmDeleteSession = (sessionId: string) => {
     Alert.alert(
       'Delete session?',
-      'This removes the timed practice from this day. Linked notes stay in your journal.',
+      'This removes the timed practice from this day. Linked notes stay on the timeline as standalone entries.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => void deleteSession.mutateAsync(sessionId),
+          onPress: () => {
+            void (async () => {
+              try {
+                await deleteSession.mutateAsync(sessionId);
+              } catch (err) {
+                Alert.alert(
+                  'Couldn’t delete',
+                  err instanceof Error ? err.message : 'Unknown error',
+                );
+              }
+            })();
+          },
         },
       ],
     );
@@ -403,7 +425,7 @@ export function JournalScreen() {
           accessibilityRole="button"
           accessibilityLabel="Open calendar">
           <Text style={styles.dateHeading}>{formatDayHeading(date)}</Text>
-          <Text style={styles.dateSub}>{format(parseISO(date), 'MMMM d, yyyy')}</Text>
+          <Text style={styles.dateSub}>{format(parseLocalDate(date), 'MMMM d, yyyy')}</Text>
         </Pressable>
         <View style={styles.dateNavRight}>
           <Pressable
@@ -424,6 +446,22 @@ export function JournalScreen() {
           </Pressable>
         </View>
       </View>
+
+      {summary && !isLoading ? (
+        <View style={styles.dayStats}>
+          <Text style={styles.dayStatsText}>
+            {summary.timeStats.totalMs > 0
+              ? `${formatDurationShort(summary.timeStats.totalMs)} practiced`
+              : 'No practice logged'}
+            {summary.habitStats.due > 0
+              ? ` · ${summary.habitStats.completed} of ${summary.habitStats.due} habits`
+              : ''}
+            {summary.journalStats.entryCount > 0
+              ? ` · ${summary.journalStats.entryCount} ${summary.journalStats.entryCount === 1 ? 'entry' : 'entries'}`
+              : ''}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.paper}>
         {isLoading ? (
@@ -534,6 +572,15 @@ const styles = StyleSheet.create({
     ...typography.data,
     color: paper.inkMuted,
     marginTop: 2,
+  },
+  dayStats: {
+    paddingHorizontal: spacing.container,
+    marginBottom: spacing.md,
+  },
+  dayStatsText: {
+    ...typography.data,
+    color: paper.inkMuted,
+    textAlign: 'center',
   },
   paper: {
     flex: 1,
@@ -695,6 +742,12 @@ const styles = StyleSheet.create({
   dayTextSelected: {
     color: colors.onPrimary,
     fontFamily: fonts.sansSemiBold,
+  },
+  dayCellDisabled: {
+    opacity: 0.35,
+  },
+  dayTextDisabled: {
+    color: colors.textMuted,
   },
   entryModal: {
     flex: 1,

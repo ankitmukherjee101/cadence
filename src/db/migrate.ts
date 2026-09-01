@@ -81,6 +81,13 @@ const MIGRATIONS: { version: number; statements: string[] }[] = [
       `ALTER TABLE time_sessions ADD COLUMN paused_total_ms INTEGER NOT NULL DEFAULT 0;`,
     ],
   },
+  {
+    version: 5,
+    statements: [
+      `CREATE UNIQUE INDEX IF NOT EXISTS time_sessions_single_running_uidx
+        ON time_sessions((1)) WHERE ended_at IS NULL;`,
+    ],
+  },
 ];
 
 async function getUserVersion(sqlite: SQLiteDatabase): Promise<number> {
@@ -92,11 +99,32 @@ async function setUserVersion(sqlite: SQLiteDatabase, version: number): Promise<
   await sqlite.execAsync(`PRAGMA user_version = ${version}`);
 }
 
+/** Keep the most recent open session; auto-stop orphaned duplicates. */
+async function reconcileDuplicateRunningSessions(sqlite: SQLiteDatabase): Promise<void> {
+  const rows = await sqlite.getAllAsync<{ id: string }>(
+    'SELECT id FROM time_sessions WHERE ended_at IS NULL ORDER BY started_at DESC',
+  );
+  if (rows.length <= 1) return;
+
+  const now = new Date().toISOString();
+  for (const { id } of rows.slice(1)) {
+    await sqlite.runAsync(
+      'UPDATE time_sessions SET ended_at = ?, paused_at = NULL WHERE id = ?',
+      now,
+      id,
+    );
+  }
+}
+
 export async function migrate(sqlite: SQLiteDatabase): Promise<void> {
   const current = await getUserVersion(sqlite);
 
   for (const migration of MIGRATIONS) {
     if (migration.version <= current) continue;
+
+    if (migration.version === 5) {
+      await reconcileDuplicateRunningSessions(sqlite);
+    }
 
     await sqlite.execAsync('BEGIN');
     try {

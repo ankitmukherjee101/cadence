@@ -7,7 +7,7 @@ Data stays on your device in SQLite. There is no account, no cloud sync, and no 
 ## Features
 
 ### Habits
-- Create habits with Lucide icons, categories, optional daily reminders, and streak settings (calendar vs scheduled days, optional grace days). Weekly schedules are supported in the domain/data model; create UI is daily-only today.
+- Create habits with Lucide icons, categories, optional daily or weekly reminders, and streak settings (calendar vs scheduled days, optional grace days). Weekly schedules use a weekday picker in the habit form.
 - Start a **stopwatch** or **pomodoro** session from the habit list; mode and lengths are chosen per session (last choice remembered per habit).
 - Ending a session marks the habit complete for that local date.
 - Archive / restore habits without losing history.

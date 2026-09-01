@@ -18,15 +18,28 @@ export type HabitAnalytics = {
   currentStreak: number;
 };
 
+/** Whether a habit counts as due on a calendar day given streak mode and schedule. */
+export function isHabitRequiredOnDate(
+  date: LocalDate,
+  options?: {
+    streak?: StreakSettings;
+    schedule?: HabitSchedule;
+  },
+): boolean {
+  const mode = options?.streak?.mode ?? 'scheduled';
+  const schedule = options?.schedule;
+  if (mode === 'calendar') return true;
+  if (!schedule || schedule.kind === 'daily') return true;
+  const dow = parseLocalDate(date).getDay(); // 0=Sun
+  return schedule.daysOfWeek.includes(dow);
+}
+
 function isRequiredDay(
   date: LocalDate,
   mode: StreakSettings['mode'],
   schedule?: HabitSchedule,
 ): boolean {
-  if (mode === 'calendar') return true;
-  if (!schedule || schedule.kind === 'daily') return true;
-  const dow = parseLocalDate(date).getDay(); // 0=Sun
-  return schedule.daysOfWeek.includes(dow);
+  return isHabitRequiredOnDate(date, { streak: { mode, graceDays: 0 }, schedule });
 }
 
 /**

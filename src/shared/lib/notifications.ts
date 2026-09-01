@@ -221,6 +221,46 @@ export async function syncAllHabitReminders(habits: Habit[]): Promise<void> {
   }
 }
 
+export type NotificationPayload =
+  | { type: 'session_phase'; sessionId: string }
+  | { type: 'habit_reminder'; habitId: string };
+
+export function parseNotificationData(data: unknown): NotificationPayload | null {
+  if (!data || typeof data !== 'object') return null;
+  const record = data as Record<string, unknown>;
+  if (record.type === 'session_phase' && typeof record.sessionId === 'string') {
+    return { type: 'session_phase', sessionId: record.sessionId };
+  }
+  if (record.type === 'habit_reminder' && typeof record.habitId === 'string') {
+    return { type: 'habit_reminder', habitId: record.habitId };
+  }
+  return null;
+}
+
+/**
+ * Route notification taps (and cold-start opens) into app navigation.
+ * Returns a cleanup function.
+ */
+export function setupNotificationResponseHandler(
+  handler: (payload: NotificationPayload) => void,
+): () => void {
+  const NotificationsApi = getNotifications();
+  if (!NotificationsApi) return () => {};
+
+  void NotificationsApi.getLastNotificationResponseAsync().then((response) => {
+    if (!response) return;
+    const payload = parseNotificationData(response.notification.request.content.data);
+    if (payload) handler(payload);
+  });
+
+  const sub = NotificationsApi.addNotificationResponseReceivedListener((response) => {
+    const payload = parseNotificationData(response.notification.request.content.data);
+    if (payload) handler(payload);
+  });
+
+  return () => sub.remove();
+}
+
 export function formatReminderLabel(minutes: number): string {
   const { hour, minute } = reminderParts(minutes);
   const h12 = hour % 12 === 0 ? 12 : hour % 12;

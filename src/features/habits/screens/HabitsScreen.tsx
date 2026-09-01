@@ -12,9 +12,10 @@ import { type Href, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CirclePlus from 'lucide-react-native/icons/circle-plus';
 import ListTodo from 'lucide-react-native/icons/list-todo';
+import Share from 'lucide-react-native/icons/share';
 
 import type { Habit } from '@/src/domain';
-import { todayLocalDate } from '@/src/domain';
+import { isHabitRequiredOnDate, todayLocalDate } from '@/src/domain';
 import { HabitFormModal } from '@/src/features/habits/components/HabitFormModal';
 import { HabitRow } from '@/src/features/habits/components/HabitRow';
 import {
@@ -31,6 +32,8 @@ import {
   useUnarchiveHabit,
 } from '@/src/features/habits/hooks';
 import { hapticSelection } from '@/src/shared/lib/haptics';
+import { exportAndShareCadenceBackup } from '@/src/shared/lib/backup';
+import { buildStartChoiceFromPref } from '@/src/shared/lib/quick-start';
 import { EmptyState } from '@/src/shared/ui/EmptyState';
 import { FadeDown } from '@/src/shared/ui/motion';
 import { colors, spacing, typography } from '@/src/shared/ui/tokens';
@@ -87,14 +90,23 @@ export function HabitsScreen() {
   const [formOpen, setFormOpen] = useState(false);
   const [sessionHabit, setSessionHabit] = useState<Habit | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const completedIds = useMemo(
     () => new Set((logs ?? []).filter((l) => l.status === 'completed').map((l) => l.habitId)),
     [logs],
   );
 
-  const doneCount = habits?.filter((h) => completedIds.has(h.id)).length ?? 0;
-  const totalCount = habits?.length ?? 0;
+  const dueHabits = useMemo(
+    () =>
+      (habits ?? []).filter((h) =>
+        isHabitRequiredOnDate(today, { streak: h.streak, schedule: h.schedule }),
+      ),
+    [habits, today],
+  );
+
+  const doneCount = dueHabits.filter((h) => completedIds.has(h.id)).length;
+  const totalCount = dueHabits.length;
 
   const sections = useMemo(() => groupHabitsByCategory(habits ?? []), [habits]);
 
@@ -127,7 +139,18 @@ export function HabitsScreen() {
         {
           text: 'Archive',
           style: 'destructive',
-          onPress: () => void archiveHabit.mutateAsync(habit.id),
+          onPress: () => {
+            void (async () => {
+              try {
+                await archiveHabit.mutateAsync(habit.id);
+              } catch (err) {
+                Alert.alert(
+                  'Couldn’t archive',
+                  err instanceof Error ? err.message : 'Unknown error',
+                );
+              }
+            })();
+          },
         },
       ],
     );
@@ -137,7 +160,31 @@ export function HabitsScreen() {
   const sessionBarOffset = running ? 44 : 0;
   const listBottom = TAB_BAR_BASE + insets.bottom + sessionBarOffset + spacing.xl;
 
-  const onStartPress = (habit: Habit) => {
+  const onQuickStart = async (habit: Habit) => {
+    if (running) {
+      if (running.habitId === habit.id) {
+        router.push(ACTIVE_SESSION_HREF);
+        return;
+      }
+      Alert.alert('Session in progress', 'Stop the current session before starting another.');
+      return;
+    }
+    try {
+      void hapticSelection();
+      const choice = await buildStartChoiceFromPref(habit.id);
+      await startSession.mutateAsync({
+        habitId: habit.id,
+        mode: choice.mode,
+        targetDurationMs: choice.targetDurationMs,
+        notes: choice.notes,
+      });
+      router.push(ACTIVE_SESSION_HREF);
+    } catch (err) {
+      Alert.alert('Couldn’t start', err instanceof Error ? err.message : 'Unknown error');
+    }
+  };
+
+  const onCustomizeStart = (habit: Habit) => {
     if (running) {
       if (running.habitId === habit.id) {
         router.push(ACTIVE_SESSION_HREF);
@@ -147,6 +194,18 @@ export function HabitsScreen() {
       return;
     }
     setSessionHabit(habit);
+  };
+
+  const onExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportAndShareCadenceBackup();
+    } catch (err) {
+      Alert.alert('Export failed', err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const onConfirmStart = async (choice: StartSessionChoice) => {
@@ -179,7 +238,20 @@ export function HabitsScreen() {
                 <Text style={styles.archivedName} numberOfLines={1}>
                   {item.name}
                 </Text>
-                <Pressable onPress={() => void unarchiveHabit.mutateAsync(item.id)} hitSlop={8}>
+                <Pressable
+                  onPress={() => {
+                    void (async () => {
+                      try {
+                        await unarchiveHabit.mutateAsync(item.id);
+                      } catch (err) {
+                        Alert.alert(
+                          'Couldn’t restore',
+                          err instanceof Error ? err.message : 'Unknown error',
+                        );
+                      }
+                    })();
+                  }}
+                  hitSlop={8}>
                   <Text style={styles.restore}>Restore</Text>
                 </Pressable>
               </View>
@@ -195,19 +267,30 @@ export function HabitsScreen() {
           <View style={styles.headerTop}>
             {totalCount > 0 ? (
               <Text style={styles.metric}>
-                {doneCount} of {totalCount} done today
+                {doneCount} of {totalCount} due today
               </Text>
             ) : (
               <Text style={styles.metric}>Your practice, timed</Text>
             )}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Add habit"
-              onPress={openCreate}
-              hitSlop={8}
-              style={styles.addBtn}>
-              <CirclePlus size={22} color={colors.accent} strokeWidth={1.5} />
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Export backup"
+                onPress={() => void onExport()}
+                disabled={exporting}
+                hitSlop={8}
+                style={styles.iconBtn}>
+                <Share size={20} color={colors.accent} strokeWidth={1.5} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Add habit"
+                onPress={openCreate}
+                hitSlop={8}
+                style={styles.iconBtn}>
+                <CirclePlus size={22} color={colors.accent} strokeWidth={1.5} />
+              </Pressable>
+            </View>
           </View>
         </View>
       </FadeDown>
@@ -237,16 +320,24 @@ export function HabitsScreen() {
               <Text style={styles.sectionHeader}>{section.title}</Text>
             ) : null
           }
-          renderItem={({ item }) => (
+          renderItem={({ item }) => {
+            const scheduledToday = isHabitRequiredOnDate(today, {
+              streak: item.streak,
+              schedule: item.schedule,
+            });
+            return (
             <HabitRow
               habit={item}
               completedToday={completedIds.has(item.id)}
+              scheduledToday={scheduledToday}
               disabled={startSession.isPending}
-              onStartPress={() => onStartPress(item)}
+              onStartPress={() => void onQuickStart(item)}
+              onCustomizePress={() => onCustomizeStart(item)}
               onEdit={() => openEdit(item.id)}
               onArchive={() => confirmArchive(item)}
             />
-          )}
+            );
+          }}
         />
       )}
 
@@ -281,7 +372,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     flex: 1,
   },
-  addBtn: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  iconBtn: {
     width: 40,
     height: 40,
     alignItems: 'center',

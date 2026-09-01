@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -48,13 +49,17 @@ export function JournalPromptSheet() {
       close();
       return;
     }
-    await createEntry.mutateAsync({
-      date: prompt.date,
-      body: trimmed,
-      habitId: prompt.habitId,
-      sessionId: prompt.sessionId,
-    });
-    close();
+    try {
+      await createEntry.mutateAsync({
+        date: prompt.date,
+        body: trimmed,
+        habitId: prompt.habitId,
+        sessionId: prompt.sessionId,
+      });
+      close();
+    } catch (err) {
+      Alert.alert('Couldn’t save', err instanceof Error ? err.message : 'Unknown error');
+    }
   };
 
   if (writing) {

@@ -114,7 +114,7 @@ export function useRunningSession() {
   return useQuery({
     queryKey: queryKeys.runningSession,
     queryFn: () => timeRepo().getRunning(),
-    refetchInterval: 1000,
+    refetchInterval: (query) => (query.state.data ? 1000 : false),
   });
 }
 
@@ -177,7 +177,7 @@ export function useStopHabitSession() {
       if (!stopped.habitId) return { session: stopped, habit: null };
 
       const habit = await habitsRepo().getById(stopped.habitId);
-      const date = toLocalDate(new Date(stopped.startedAt));
+      const date = toLocalDate(new Date(stopped.endedAt ?? stopped.startedAt));
       await habitsRepo().upsertLog({
         habitId: stopped.habitId,
         date,
@@ -240,18 +240,19 @@ export function useResumeSession() {
   });
 }
 
-/**
- * Advance an expired pomodoro phase (break ↔ focus) or complete the session.
- * Shared by foreground tick + AppState resume.
- */
-export async function advanceExpiredPomodoro(sessionId: string): Promise<'advanced' | 'completed' | 'noop'> {
+const advanceInFlight = new Map<string, Promise<'advanced' | 'completed' | 'noop'>>();
+
+async function advancePomodoroPhaseInner(
+  sessionId: string,
+  options: { requireExpired: boolean },
+): Promise<'advanced' | 'completed' | 'noop'> {
   const session = await timeRepo().getById(sessionId);
   if (!session || session.endedAt) return 'noop';
   if (session.pausedAt) return 'noop';
 
   const state = getPomodoroState(session);
   if (!state) return 'noop';
-  if (phaseRemainingMs(state, new Date(), session) > 0) return 'noop';
+  if (options.requireExpired && phaseRemainingMs(state, new Date(), session) > 0) return 'noop';
 
   const phaseStartedAt = nowIso();
   const advance = nextPomodoroAdvance(state, phaseStartedAt);
@@ -262,7 +263,7 @@ export async function advanceExpiredPomodoro(sessionId: string): Promise<'advanc
     if (stopped.habitId) {
       await habitsRepo().upsertLog({
         habitId: stopped.habitId,
-        date: toLocalDate(new Date(stopped.startedAt)),
+        date: toLocalDate(new Date(stopped.endedAt ?? stopped.startedAt)),
         status: 'completed',
       });
     }
@@ -277,6 +278,61 @@ export async function advanceExpiredPomodoro(sessionId: string): Promise<'advanc
   return 'advanced';
 }
 
+function runPomodoroAdvance(
+  sessionId: string,
+  requireExpired: boolean,
+): Promise<'advanced' | 'completed' | 'noop'> {
+  const existing = advanceInFlight.get(sessionId);
+  if (existing) return existing;
+
+  const work = advancePomodoroPhaseInner(sessionId, { requireExpired }).finally(() => {
+    advanceInFlight.delete(sessionId);
+  });
+  advanceInFlight.set(sessionId, work);
+  return work;
+}
+
+/** Advance when the current pomodoro phase timer has expired. */
+export async function advanceExpiredPomodoro(
+  sessionId: string,
+): Promise<'advanced' | 'completed' | 'noop'> {
+  return runPomodoroAdvance(sessionId, true);
+}
+
+/** Skip break or end focus early — advances without waiting for phase expiry. */
+export async function manualAdvancePomodoro(
+  sessionId: string,
+): Promise<'advanced' | 'completed' | 'noop'> {
+  return runPomodoroAdvance(sessionId, false);
+}
+
+async function handlePomodoroCompleted(
+  sessionId: string,
+  qc: ReturnType<typeof useQueryClient>,
+  setJournalPrompt: ReturnType<typeof useUiStore.getState>['setJournalPrompt'],
+): Promise<void> {
+  const session = await timeRepo().getById(sessionId);
+  if (!session?.habitId) return;
+  const habit = await habitsRepo().getById(session.habitId);
+  const date = toLocalDate(new Date(session.endedAt ?? session.startedAt));
+  await Promise.all([
+    qc.invalidateQueries({ queryKey: queryKeys.habits }),
+    qc.invalidateQueries({ queryKey: queryKeys.habitLogsToday(todayLocalDate()) }),
+    qc.invalidateQueries({ queryKey: queryKeys.day(date) }),
+    qc.invalidateQueries({ queryKey: queryKeys.habitAnalytics(session.habitId) }),
+  ]);
+  if (habit) {
+    setJournalPrompt({
+      sessionId: session.id,
+      habitId: habit.id,
+      habitName: habit.name,
+      habitIcon: habit.icon,
+      date,
+      durationMs: sessionDurationMs(session),
+    });
+  }
+}
+
 export function useAdvanceExpiredPomodoro() {
   const qc = useQueryClient();
   const setJournalPrompt = useUiStore((s) => s.setJournalPrompt);
@@ -285,27 +341,23 @@ export function useAdvanceExpiredPomodoro() {
     mutationFn: (sessionId: string) => advanceExpiredPomodoro(sessionId),
     onSuccess: async (result, sessionId) => {
       await qc.invalidateQueries({ queryKey: queryKeys.runningSession });
-      if (result !== 'completed') return;
+      if (result === 'completed') {
+        await handlePomodoroCompleted(sessionId, qc, setJournalPrompt);
+      }
+    },
+  });
+}
 
-      const session = await timeRepo().getById(sessionId);
-      if (!session?.habitId) return;
-      const habit = await habitsRepo().getById(session.habitId);
-      const date = toLocalDate(new Date(session.startedAt));
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: queryKeys.habits }),
-        qc.invalidateQueries({ queryKey: queryKeys.habitLogsToday(todayLocalDate()) }),
-        qc.invalidateQueries({ queryKey: queryKeys.day(date) }),
-        qc.invalidateQueries({ queryKey: queryKeys.habitAnalytics(session.habitId) }),
-      ]);
-      if (habit) {
-        setJournalPrompt({
-          sessionId: session.id,
-          habitId: habit.id,
-          habitName: habit.name,
-          habitIcon: habit.icon,
-          date,
-          durationMs: sessionDurationMs(session),
-        });
+export function useManualAdvancePomodoro() {
+  const qc = useQueryClient();
+  const setJournalPrompt = useUiStore((s) => s.setJournalPrompt);
+
+  return useMutation({
+    mutationFn: (sessionId: string) => manualAdvancePomodoro(sessionId),
+    onSuccess: async (result, sessionId) => {
+      await qc.invalidateQueries({ queryKey: queryKeys.runningSession });
+      if (result === 'completed') {
+        await handlePomodoroCompleted(sessionId, qc, setJournalPrompt);
       }
     },
   });
@@ -412,6 +464,19 @@ export function useUpdateJournalEntry() {
       await qc.invalidateQueries({ queryKey: queryKeys.journal(entry.date) });
       await qc.invalidateQueries({ queryKey: queryKeys.day(entry.date) });
       await qc.invalidateQueries({ queryKey: queryKeys.journalEntry(entry.id) });
+    },
+  });
+}
+
+export function useDeleteJournalEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => journalRepo().delete(id),
+    onSuccess: async (entry) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.journal(entry.date) }),
+        qc.invalidateQueries({ queryKey: queryKeys.day(entry.date) }),
+      ]);
     },
   });
 }

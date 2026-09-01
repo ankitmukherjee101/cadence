@@ -52,3 +52,18 @@ export function startOfWeekMonday(date: LocalDate): LocalDate {
   const delta = dow === 0 ? -6 : 1 - dow;
   return addDays(date, delta);
 }
+
+/** UTC ISO bounds for querying sessions that started on a local calendar date. */
+export function localDateUtcBounds(date: LocalDate): { startIso: string; endIso: string } {
+  const start = parseLocalDate(date);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
+}
+
+/** Local noon on `date` as UTC ISO — stable fallback timestamp for timeline ordering. */
+export function localNoonIso(date: LocalDate): string {
+  const noon = parseLocalDate(date);
+  noon.setHours(12, 0, 0, 0);
+  return noon.toISOString();
+}

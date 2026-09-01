@@ -7,6 +7,7 @@ type Props = {
   onPress?: () => void;
   disabled?: boolean;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
   size?: number;
 };
 
@@ -16,6 +17,7 @@ export function Checkbox({
   onPress,
   disabled,
   accessibilityLabel,
+  accessibilityHint,
   size = 16,
 }: Props) {
   const dot = Math.max(4, Math.round(size * 0.25));
@@ -25,6 +27,7 @@ export function Checkbox({
       accessibilityRole="checkbox"
       accessibilityState={{ checked, disabled }}
       accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       disabled={disabled || !onPress}
       onPress={onPress}
       hitSlop={8}

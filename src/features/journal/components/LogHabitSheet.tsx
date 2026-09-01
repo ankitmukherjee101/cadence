@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 
 import type { Habit, LocalDate } from '@/src/domain';
@@ -77,13 +78,17 @@ export function LogHabitSheet({ visible, date, onClose }: Props) {
     if (date === todayLocalDate()) {
       endMins = Math.min(endMins, minutesNow());
     }
-    await logSession.mutateAsync({
-      habitId: habit.id,
-      date,
-      durationMs: minutes * 60_000,
-      endedMinutes: endMins,
-    });
-    onClose();
+    try {
+      await logSession.mutateAsync({
+        habitId: habit.id,
+        date,
+        durationMs: minutes * 60_000,
+        endedMinutes: endMins,
+      });
+      onClose();
+    } catch (err) {
+      Alert.alert('Couldn’t log', err instanceof Error ? err.message : 'Unknown error');
+    }
   };
 
   const isToday = date === todayLocalDate();

@@ -197,7 +197,7 @@ type Habit = {
 - Last mode/config per habit is persisted via `session-prefs` (AsyncStorage), not SQLite.
 - Optional `reminderMinutes` (minutes from local midnight) schedules a local notification.
 - Per-habit `streak` settings drive `computeCurrentStreak` (grace + calendar vs scheduled). If today is still open, counting starts from yesterday.
-- Habit form UX: name → category → icon (searchable; first 24 until Advanced), then Advanced for reminder + streak. Form creates **daily** schedules only; weekly is preserved on edit if already set in the DB.
+- Habit form UX: name → category → icon (searchable; first 24 until Advanced), weekday schedule picker, reminder, and streak settings. All seven weekdays selected stores a daily schedule; fewer days stores weekly.
 - Schema fields not yet exposed in UI: habit `color`, journal `mood`, `tags` table, habit-log `skipped` status.
 
 ### 5.2 Time session
@@ -559,7 +559,7 @@ Deferred within polish:
 | Sync | Deferred | Local-first product; sync is a product decision |
 | Day as composition | Yes | Makes Cadence one product instead of three |
 | Application layer | Query hooks + repos | Avoid a separate use-case folder until complexity demands it |
-| Weekly schedule UX | Domain yes; form daily-only | Reminder + streak code honor weekly; create UI deferred |
+| Weekly schedule UX | Weekday picker in habit form | Daily when all days selected; weekly otherwise |
 | Schema-only fields | tags / mood / color / skip | Kept for forward compatibility; no product surface yet |
 
 ---

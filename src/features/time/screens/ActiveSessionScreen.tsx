@@ -16,6 +16,7 @@ import {
 import {
   useAdvanceExpiredPomodoro,
   useHabits,
+  useManualAdvancePomodoro,
   usePauseSession,
   useResumeSession,
   useRunningSession,
@@ -37,6 +38,7 @@ export function ActiveSessionScreen() {
   const pauseSession = usePauseSession();
   const resumeSession = useResumeSession();
   const advancePhase = useAdvanceExpiredPomodoro();
+  const manualAdvance = useManualAdvancePomodoro();
   const [now, setNow] = useState(() => Date.now());
   const finishingRef = useRef(false);
   const lastMinuteRef = useRef<number | null>(null);
@@ -75,6 +77,27 @@ export function ActiveSessionScreen() {
       void resumeSession.mutateAsync(session.id);
     } else {
       void pauseSession.mutateAsync(session.id);
+    }
+  };
+
+  const skipPhase = async () => {
+    if (!session || manualAdvance.isPending || finishingRef.current) return;
+    finishingRef.current = true;
+    try {
+      const result = await manualAdvance.mutateAsync(session.id);
+      if (result === 'completed') {
+        void hapticSuccess();
+        if (router.canGoBack()) router.back();
+        else router.replace('/');
+      } else if (result === 'advanced') {
+        void hapticLight();
+        finishingRef.current = false;
+      } else {
+        finishingRef.current = false;
+      }
+    } catch (err) {
+      finishingRef.current = false;
+      Alert.alert('Timer error', err instanceof Error ? err.message : 'Unknown error');
     }
   };
 
@@ -218,6 +241,15 @@ export function ActiveSessionScreen() {
       </FadeUp>
 
       <View style={styles.actions}>
+        {pomodoro && !paused ? (
+          <Button
+            label={isBreak ? 'Skip break' : 'Start break early'}
+            variant="ghost"
+            onPress={() => void skipPhase()}
+            disabled={manualAdvance.isPending}
+            style={styles.actionBtn}
+          />
+        ) : null}
         <Button
           label={paused ? 'Resume' : 'Pause'}
           variant="ghost"
@@ -292,6 +324,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   actionBtn: {

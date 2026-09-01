@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lt, lte, sql } from 'drizzle-orm';
 
 import type {
   DayEvent,
@@ -19,6 +19,9 @@ import {
   computeCurrentStreak,
   DEFAULT_STREAK_SETTINGS,
   encodePomodoroNotes,
+  isHabitRequiredOnDate,
+  localDateUtcBounds,
+  localNoonIso,
   normalizeStreakSettings,
   parseLocalDate,
   parsePomodoroNotes,
@@ -33,7 +36,11 @@ import { habitLogs, habits, journalEntries, timeSessions } from '../schema';
 import { createId, nowIso } from '../utils';
 
 function parseSchedule(json: string): HabitSchedule {
-  return JSON.parse(json) as HabitSchedule;
+  try {
+    return JSON.parse(json) as HabitSchedule;
+  } catch {
+    return { kind: 'daily' };
+  }
 }
 
 function parseStreak(json: string | null | undefined): StreakSettings {
@@ -312,11 +319,13 @@ export function createTimeRepository(db: CadenceDb = getDb()) {
     },
 
     async listForDate(date: LocalDate): Promise<TimeSession[]> {
-      // Sessions store UTC ISO — map to local calendar date in JS
-      const rows = await db.select().from(timeSessions).orderBy(asc(timeSessions.startedAt));
-      return rows
-        .map(mapSession)
-        .filter((s) => toLocalDate(new Date(s.startedAt)) === date);
+      const { startIso, endIso } = localDateUtcBounds(date);
+      const rows = await db
+        .select()
+        .from(timeSessions)
+        .where(and(gte(timeSessions.startedAt, startIso), lt(timeSessions.startedAt, endIso)))
+        .orderBy(asc(timeSessions.startedAt));
+      return rows.map(mapSession);
     },
 
     async start(input: {
@@ -516,11 +525,20 @@ export function createTimeRepository(db: CadenceDb = getDb()) {
     },
 
     async hasCompletedSessionOnDate(habitId: string, date: LocalDate): Promise<boolean> {
+      const { startIso, endIso } = localDateUtcBounds(date);
       const rows = await db
-        .select()
+        .select({ id: timeSessions.id })
         .from(timeSessions)
-        .where(and(eq(timeSessions.habitId, habitId), sql`${timeSessions.endedAt} IS NOT NULL`));
-      return rows.some((row) => toLocalDate(new Date(mapSession(row).startedAt)) === date);
+        .where(
+          and(
+            eq(timeSessions.habitId, habitId),
+            sql`${timeSessions.endedAt} IS NOT NULL`,
+            gte(timeSessions.startedAt, startIso),
+            lt(timeSessions.startedAt, endIso),
+          ),
+        )
+        .limit(1);
+      return rows.length > 0;
     },
 
     async getHabitDayMinutes(
@@ -528,17 +546,25 @@ export function createTimeRepository(db: CadenceDb = getDb()) {
       from: LocalDate,
       to: LocalDate,
     ): Promise<{ date: LocalDate; totalMs: number }[]> {
+      const { startIso: rangeStart } = localDateUtcBounds(from);
+      const { endIso: rangeEnd } = localDateUtcBounds(to);
       const rows = await db
         .select()
         .from(timeSessions)
-        .where(and(eq(timeSessions.habitId, habitId), sql`${timeSessions.endedAt} IS NOT NULL`));
+        .where(
+          and(
+            eq(timeSessions.habitId, habitId),
+            sql`${timeSessions.endedAt} IS NOT NULL`,
+            gte(timeSessions.startedAt, rangeStart),
+            lt(timeSessions.startedAt, rangeEnd),
+          ),
+        );
 
       const byDate = new Map<LocalDate, number>();
       for (const row of rows) {
         const session = mapSession(row);
         if (!session.endedAt) continue;
         const date = toLocalDate(new Date(session.startedAt));
-        if (date < from || date > to) continue;
         byDate.set(date, (byDate.get(date) ?? 0) + sessionDurationMs(session));
       }
 
@@ -551,7 +577,6 @@ export function createTimeRepository(db: CadenceDb = getDb()) {
       const today = todayLocalDate();
       const weekStart = addDays(today, -6);
       const monthStart = addDays(today, -29);
-      // 52 Monday-start weeks through the current week
       const rangeStart = addDays(startOfWeekMonday(today), -51 * 7);
 
       const habitRows = await db.select().from(habits).where(eq(habits.id, habitId)).limit(1);
@@ -635,6 +660,17 @@ export function createJournalRepository(db: CadenceDb = getDb()) {
       habitId?: string;
       sessionId?: string;
     }): Promise<JournalEntry> {
+      if (input.sessionId) {
+        const linked = await db
+          .select({ id: journalEntries.id })
+          .from(journalEntries)
+          .where(eq(journalEntries.sessionId, input.sessionId))
+          .limit(1);
+        if (linked[0]) {
+          throw new Error('This session already has a journal note');
+        }
+      }
+
       const now = nowIso();
       const row = {
         id: createId(),
@@ -669,6 +705,13 @@ export function createJournalRepository(db: CadenceDb = getDb()) {
       const updated = await this.getById(id);
       if (!updated) throw new Error('Journal entry not found after update');
       return updated;
+    },
+
+    async delete(id: string): Promise<JournalEntry> {
+      const existing = await this.getById(id);
+      if (!existing) throw new Error('Journal entry not found');
+      await db.delete(journalEntries).where(eq(journalEntries.id, id));
+      return existing;
     },
   };
 }
@@ -733,7 +776,7 @@ export function createDayRepository(
         const habit = habitById.get(log.habitId);
         habitLogEvents.push({
           type: 'habit_log',
-          at: log.completedAt ?? `${date}T12:00:00.000Z`,
+          at: log.completedAt ?? localNoonIso(date),
           data: {
             ...log,
             habitName: habit?.name ?? 'Habit',
@@ -760,7 +803,13 @@ export function createDayRepository(
         journalEntries: journalEntriesForCompose,
       });
 
-      const completed = logs.filter((l) => l.status === 'completed').length;
+      const dueHabits = activeHabits.filter((h) =>
+        isHabitRequiredOnDate(date, { streak: h.streak, schedule: h.schedule }),
+      );
+      const dueIds = new Set(dueHabits.map((h) => h.id));
+      const completed = logs.filter(
+        (l) => l.status === 'completed' && dueIds.has(l.habitId),
+      ).length;
       const totalMs = sessions
         .filter((s) => s.endedAt)
         .reduce((sum, s) => sum + sessionDurationMs(s), 0);
@@ -768,7 +817,7 @@ export function createDayRepository(
       return {
         date,
         events,
-        habitStats: { due: activeHabits.length, completed },
+        habitStats: { due: dueHabits.length, completed },
         timeStats: { totalMs },
         journalStats: { entryCount: entries.length },
       };

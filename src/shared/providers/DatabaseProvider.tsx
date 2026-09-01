@@ -1,7 +1,8 @@
 import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { getSqlite, migrate } from '@/src/db';
+import { createHabitsRepository, getSqlite, migrate } from '@/src/db';
+import { syncAllHabitReminders } from '@/src/shared/lib/notifications';
 import { colors } from '@/src/shared/ui/tokens';
 
 type DatabaseStatus = 'loading' | 'ready' | 'error';
@@ -31,6 +32,8 @@ export function DatabaseProvider({ children }: Props) {
       setError(null);
       try {
         await migrate(getSqlite());
+        const habits = await createHabitsRepository().listActive();
+        await syncAllHabitReminders(habits);
         if (!cancelled) setStatus('ready');
       } catch (err) {
         if (!cancelled) {

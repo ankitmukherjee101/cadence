@@ -1,10 +1,12 @@
 export {
   useAdvanceExpiredPomodoro,
+  useManualAdvancePomodoro,
   useArchiveHabit,
   useArchivedHabits,
   useCreateHabit,
   useCreateJournalEntry,
   useDaySummary,
+  useDeleteJournalEntry,
   useDeleteSession,
   useHabit,
   useHabitAnalytics,

@@ -43,7 +43,8 @@
           "color": "#C2B9AD",
           "defaultChannel": "cadence-sessions"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

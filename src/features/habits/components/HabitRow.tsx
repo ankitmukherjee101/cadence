@@ -10,8 +10,10 @@ import { colors, radii, spacing, typography } from '@/src/shared/ui/tokens';
 type Props = {
   habit: Habit;
   completedToday: boolean;
+  scheduledToday?: boolean;
   disabled?: boolean;
   onStartPress: () => void;
+  onCustomizePress: () => void;
   onEdit: () => void;
   onArchive: () => void;
 };
@@ -19,8 +21,10 @@ type Props = {
 export function HabitRow({
   habit,
   completedToday,
+  scheduledToday = true,
   disabled,
   onStartPress,
+  onCustomizePress,
   onEdit,
   onArchive,
 }: Props) {
@@ -34,10 +38,11 @@ export function HabitRow({
   };
 
   return (
-    <View style={[styles.row, completedToday && styles.rowDone]}>
+    <View style={[styles.row, completedToday && styles.rowDone, !scheduledToday && styles.rowRest]}>
       <Checkbox
         checked={completedToday}
         accessibilityLabel={completedToday ? `${habit.name} done today` : habit.name}
+        accessibilityHint="Complete by starting a timed session"
       />
       <View style={styles.iconWrap}>
         <HabitIcon
@@ -59,6 +64,8 @@ export function HabitRow({
         </Text>
         {completedToday ? (
           <Text style={styles.sub}>Done today</Text>
+        ) : !scheduledToday ? (
+          <Text style={styles.sub}>Rest day</Text>
         ) : habit.category ? (
           <Text style={styles.sub} numberOfLines={1}>
             {habit.category}
@@ -75,11 +82,12 @@ export function HabitRow({
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Track time for ${habit.name}`}
+        accessibilityLabel={`Timer options for ${habit.name}`}
+        accessibilityHint="Choose stopwatch or pomodoro settings"
         disabled={disabled}
         onPress={() => {
           void hapticSelection();
-          onStartPress();
+          onCustomizePress();
         }}
         hitSlop={8}
         style={({ pressed }) => [
@@ -108,6 +116,9 @@ const styles = StyleSheet.create({
   },
   rowDone: {
     opacity: 0.72,
+  },
+  rowRest: {
+    opacity: 0.55,
   },
   pressed: {
     opacity: 0.7,
