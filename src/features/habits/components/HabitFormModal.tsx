@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -10,12 +10,14 @@ import {
   TextInput,
   Switch,
   View,
+  type ScrollView as ScrollViewType,
 } from 'react-native';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
 import ChevronUp from 'lucide-react-native/icons/chevron-up';
 
 import type { Habit, HabitIconId, HabitSchedule, StreakMode, StreakSettings } from '@/src/domain';
 import { DEFAULT_STREAK_SETTINGS } from '@/src/domain';
+import { HabitIconPickerSheet } from '@/src/features/habits/components/HabitIconPickerSheet';
 import { useCreateHabit, useHabits, useUpdateHabit } from '@/src/features/habits/hooks';
 import { Button } from '@/src/shared/ui/Button';
 import { HABIT_ICON_OPTIONS, HabitIcon, resolveHabitIconId } from '@/src/shared/ui/HabitIcon';
@@ -54,6 +56,26 @@ const WEEKDAY_OPTIONS = [
   { dow: 6, label: 'Sat' },
 ] as const;
 
+/** Popular icons shown inline on the form — full set lives in the picker sheet. */
+const CURATED_ICON_IDS: HabitIconId[] = [
+  'sparkles',
+  'focus',
+  'book-open',
+  'brain',
+  'wind',
+  'dumbbell',
+  'footprints',
+  'pen-line',
+  'moon',
+  'coffee',
+  'heart-pulse',
+  'terminal',
+  'music',
+  'sun',
+  'leaf',
+  'target',
+];
+
 function isAllDays(days: number[]): boolean {
   return days.length === 7 && ALL_DAYS.every((d) => days.includes(d));
 }
@@ -66,24 +88,48 @@ function scheduleDaysFromHabit(habit?: Habit | null): number[] {
   return [...ALL_DAYS];
 }
 
+function formatScheduleSummary(days: number[]): string {
+  if (isAllDays(days)) return 'Every day';
+  const labels = WEEKDAY_OPTIONS.filter((w) => days.includes(w.dow)).map((w) => w.label);
+  return labels.join(' · ');
+}
+
+function formatGraceSummary(graceDays: number): string {
+  if (graceDays === 0) return 'No grace';
+  return graceDays === 1 ? '1 grace day' : `${graceDays} grace days`;
+}
+
+function formatStreakSummary(days: number[], graceDays: number): string {
+  return `${formatScheduleSummary(days)} · ${formatGraceSummary(graceDays)}`;
+}
+
+function hasCustomStreakSettings(days: number[], graceDays: number): boolean {
+  return graceDays > 0 || !isAllDays(days);
+}
+
 export function HabitFormModal({ visible, onClose, habit }: Props) {
   const createHabit = useCreateHabit();
   const updateHabit = useUpdateHabit();
   const { data: habits } = useHabits();
+  const scrollRef = useRef<ScrollViewType>(null);
+  const streakSectionY = useRef(0);
 
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<HabitIconId>('sparkles');
   const [category, setCategory] = useState('');
   const [categoryFocused, setCategoryFocused] = useState(false);
-  const [iconQuery, setIconQuery] = useState('');
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [reminderOn, setReminderOn] = useState(false);
   const [reminderMinutes, setReminderMinutes] = useState(9 * 60);
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([...ALL_DAYS]);
   const [graceDays, setGraceDays] = useState(DEFAULT_STREAK_SETTINGS.graceDays);
-  const [advanced, setAdvanced] = useState(false);
+  const [streakOpen, setStreakOpen] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
+    const days = habit ? scheduleDaysFromHabit(habit) : [...ALL_DAYS];
+    const grace = habit?.streak.graceDays ?? DEFAULT_STREAK_SETTINGS.graceDays;
+
     if (habit) {
       setName(habit.name);
       setIcon(resolveHabitIconId(habit.icon));
@@ -96,8 +142,8 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
         setReminderOn(false);
         setReminderMinutes(9 * 60);
       }
-      setDaysOfWeek(scheduleDaysFromHabit(habit));
-      setGraceDays(habit.streak.graceDays);
+      setDaysOfWeek(days);
+      setGraceDays(grace);
     } else {
       setName('');
       setIcon('sparkles');
@@ -107,9 +153,9 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
       setDaysOfWeek([...ALL_DAYS]);
       setGraceDays(DEFAULT_STREAK_SETTINGS.graceDays);
     }
-    setIconQuery('');
     setCategoryFocused(false);
-    setAdvanced(false);
+    setIconPickerOpen(false);
+    setStreakOpen(hasCustomStreakSettings(days, grace));
   }, [visible, habit]);
 
   const existingCategories = useMemo(() => {
@@ -127,7 +173,18 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
     return existingCategories.filter((c) => c.toLowerCase().includes(q));
   }, [category, existingCategories]);
 
+  const curatedIcons = useMemo(() => {
+    const byId = new Map(HABIT_ICON_OPTIONS.map((item) => [item.id, item]));
+    const curated = CURATED_ICON_IDS.map((id) => byId.get(id)).filter(Boolean) as typeof HABIT_ICON_OPTIONS;
+    if (!curated.some((item) => item.id === icon)) {
+      const selected = byId.get(icon);
+      if (selected) curated.unshift(selected);
+    }
+    return curated.slice(0, CURATED_ICON_IDS.length + 1);
+  }, [icon]);
+
   const streakMode: StreakMode = isAllDays(daysOfWeek) ? 'calendar' : 'scheduled';
+  const streakSummary = formatStreakSummary(daysOfWeek, graceDays);
 
   const toggleDay = (dow: number) => {
     setDaysOfWeek((prev) => {
@@ -145,16 +202,17 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
     setDaysOfWeek((prev) => (isAllDays(prev) ? [...WEEKDAY_DEFAULT] : prev));
   };
 
-  const filteredIcons = useMemo(() => {
-    const q = iconQuery.trim().toLowerCase();
-    if (!q) return HABIT_ICON_OPTIONS;
-    return HABIT_ICON_OPTIONS.filter(
-      (item) =>
-        item.label.toLowerCase().includes(q) ||
-        item.id.toLowerCase().includes(q) ||
-        item.id.replace(/-/g, ' ').includes(q),
-    );
-  }, [iconQuery]);
+  const toggleStreakSection = () => {
+    setStreakOpen((open) => {
+      const next = !open;
+      if (next) {
+        requestAnimationFrame(() => {
+          scrollRef.current?.scrollTo({ y: streakSectionY.current, animated: true });
+        });
+      }
+      return next;
+    });
+  };
 
   const buildSchedule = (): HabitSchedule => {
     const reminder = reminderOn ? reminderMinutes : null;
@@ -207,81 +265,49 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
   const selectedLabel = HABIT_ICON_OPTIONS.find((i) => i.id === icon)?.label ?? icon;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{habit ? 'Edit habit' : 'New habit'}</Text>
-          <Pressable onPress={onClose} hitSlop={12}>
-            <Text style={styles.close}>Close</Text>
-          </Pressable>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.label}>Name</Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="e.g. Deep work"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Category (optional)</Text>
-          <TextInput
-            value={category}
-            onChangeText={setCategory}
-            onFocus={() => setCategoryFocused(true)}
-            onBlur={() => setCategoryFocused(false)}
-            placeholder="e.g. Focus"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-          />
-          {existingCategories.length > 0 ? (
-            <View style={styles.categoryRow}>
-              {(categoryFocused || category.length > 0 ? suggestedCategories : existingCategories).map(
-                (item) => {
-                  const active = category.trim().toLowerCase() === item.toLowerCase();
-                  return (
-                    <Pressable
-                      key={item}
-                      onPress={() => setCategory(item)}
-                      style={[styles.categoryChip, active && styles.categoryChipActive]}>
-                      <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
-                        {item}
-                      </Text>
-                    </Pressable>
-                  );
-                },
-              )}
-            </View>
-          ) : null}
-
-          <Text style={styles.label}>Icon</Text>
-          <View style={styles.selectedRow}>
-            <View style={[styles.iconChip, styles.iconChipActive]}>
-              <HabitIcon name={icon} size={22} color={colors.accent} />
-            </View>
-            <Text style={styles.selectedLabel} numberOfLines={1}>
-              {selectedLabel}
-            </Text>
+    <>
+      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{habit ? 'Edit habit' : 'New habit'}</Text>
+            <Pressable onPress={onClose} hitSlop={12}>
+              <Text style={styles.close}>Close</Text>
+            </Pressable>
           </View>
-          <TextInput
-            value={iconQuery}
-            onChangeText={setIconQuery}
-            placeholder="Search icons…"
-            placeholderTextColor={colors.textMuted}
-            autoCorrect={false}
-            autoCapitalize="none"
-            clearButtonMode="while-editing"
-            style={styles.input}
-          />
-          {filteredIcons.length === 0 ? (
-            <Text style={styles.emptyIcons}>No icons match “{iconQuery.trim()}”</Text>
-          ) : (
+
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled">
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g. Deep work"
+              placeholderTextColor={colors.textMuted}
+              style={styles.input}
+            />
+
+            <Text style={styles.label}>Icon</Text>
+            <Pressable
+              onPress={() => setIconPickerOpen(true)}
+              style={styles.iconPreview}
+              accessibilityRole="button"
+              accessibilityLabel="Browse all icons">
+              <View style={[styles.iconChip, styles.iconChipActive]}>
+                <HabitIcon name={icon} size={24} color={colors.accent} />
+              </View>
+              <View style={styles.iconPreviewText}>
+                <Text style={styles.selectedLabel} numberOfLines={1}>
+                  {selectedLabel}
+                </Text>
+                <Text style={styles.browseLink}>Browse all icons</Text>
+              </View>
+            </Pressable>
             <View style={styles.iconRow}>
-              {(advanced ? filteredIcons : filteredIcons.slice(0, 24)).map((item) => {
+              {curatedIcons.map((item) => {
                 const active = icon === item.id;
                 return (
                   <Pressable
@@ -298,133 +324,178 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
                 );
               })}
             </View>
-          )}
-          {!advanced && filteredIcons.length > 24 ? (
-            <Text style={styles.moreIconsHint}>Open Advanced to browse all icons</Text>
-          ) : null}
 
-          <Pressable
-            onPress={() => setAdvanced((v) => !v)}
-            style={styles.advancedToggle}
-            accessibilityRole="button">
-            <Text style={styles.advancedText}>{advanced ? 'Hide advanced' : 'Advanced'}</Text>
-            {advanced ? (
-              <ChevronUp size={16} color={colors.accent} />
-            ) : (
-              <ChevronDown size={16} color={colors.accent} />
-            )}
-          </Pressable>
+            <Text style={styles.label}>Category (optional)</Text>
+            <TextInput
+              value={category}
+              onChangeText={setCategory}
+              onFocus={() => setCategoryFocused(true)}
+              onBlur={() => setCategoryFocused(false)}
+              placeholder="e.g. Focus"
+              placeholderTextColor={colors.textMuted}
+              style={styles.input}
+            />
+            {existingCategories.length > 0 ? (
+              <View style={styles.categoryRow}>
+                {(categoryFocused || category.length > 0 ? suggestedCategories : existingCategories).map(
+                  (item) => {
+                    const active = category.trim().toLowerCase() === item.toLowerCase();
+                    return (
+                      <Pressable
+                        key={item}
+                        onPress={() => setCategory(item)}
+                        style={[styles.categoryChip, active && styles.categoryChipActive]}>
+                        <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                          {item}
+                        </Text>
+                      </Pressable>
+                    );
+                  },
+                )}
+              </View>
+            ) : null}
 
-          {advanced ? (
-            <>
-              <View style={styles.reminderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.reminderTitle}>Daily reminder</Text>
-                  <Text style={styles.reminderHint}>Local notification on this device</Text>
+            <View style={styles.sectionDivider} />
+
+            <Text style={styles.sectionTitle}>Schedule</Text>
+            <View style={styles.weekdayRow}>
+              {WEEKDAY_OPTIONS.map(({ dow, label }) => {
+                const active = daysOfWeek.includes(dow);
+                return (
+                  <Pressable
+                    key={dow}
+                    onPress={() => toggleDay(dow)}
+                    style={[styles.weekdayChip, active && styles.weekdayChipActive]}>
+                    <Text style={[styles.weekdayText, active && styles.weekdayTextActive]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.reminderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.reminderTitle}>Daily reminder</Text>
+                <Text style={styles.reminderHint}>Local notification on this device</Text>
+              </View>
+              <Switch
+                value={reminderOn}
+                onValueChange={setReminderOn}
+                trackColor={{ false: colors.border, true: colors.accentMuted }}
+                thumbColor={reminderOn ? colors.accent : colors.textMuted}
+              />
+            </View>
+
+            {reminderOn ? (
+              <>
+                <Text style={styles.timeLabel}>{formatReminderLabel(reminderMinutes)}</Text>
+                <View style={styles.presetRow}>
+                  {REMINDER_PRESETS.map((mins) => {
+                    const active = reminderMinutes === mins;
+                    return (
+                      <Pressable
+                        key={mins}
+                        onPress={() => setReminderMinutes(mins)}
+                        style={[styles.presetChip, active && styles.presetChipActive]}>
+                        <Text style={[styles.presetText, active && styles.presetTextActive]}>
+                          {formatReminderLabel(mins)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
-                <Switch
-                  value={reminderOn}
-                  onValueChange={setReminderOn}
-                  trackColor={{ false: colors.border, true: colors.accentMuted }}
-                  thumbColor={reminderOn ? colors.accent : colors.textMuted}
-                />
+              </>
+            ) : null}
+
+            <View style={styles.sectionDivider} />
+
+            <Pressable
+              onPress={toggleStreakSection}
+              style={styles.collapseHeader}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: streakOpen }}
+              onLayout={(e) => {
+                streakSectionY.current = e.nativeEvent.layout.y;
+              }}>
+              <View style={styles.collapseHeaderText}>
+                <Text style={styles.sectionTitle}>Streak options</Text>
+                {!streakOpen ? (
+                  <Text style={styles.collapseSummary} numberOfLines={1}>
+                    {streakSummary}
+                  </Text>
+                ) : null}
               </View>
+              {streakOpen ? (
+                <ChevronUp size={18} color={colors.accent} />
+              ) : (
+                <ChevronDown size={18} color={colors.accent} />
+              )}
+            </Pressable>
 
-              {reminderOn ? (
-                <>
-                  <Text style={styles.timeLabel}>{formatReminderLabel(reminderMinutes)}</Text>
-                  <View style={styles.presetRow}>
-                    {REMINDER_PRESETS.map((mins) => {
-                      const active = reminderMinutes === mins;
-                      return (
-                        <Pressable
-                          key={mins}
-                          onPress={() => setReminderMinutes(mins)}
-                          style={[styles.presetChip, active && styles.presetChipActive]}>
-                          <Text style={[styles.presetText, active && styles.presetTextActive]}>
-                            {formatReminderLabel(mins)}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </>
-              ) : null}
+            {streakOpen ? (
+              <>
+                <Text style={styles.label}>Streak counts</Text>
+                <View style={styles.modeRow}>
+                  {(
+                    [
+                      { id: 'scheduled' as const, label: 'Scheduled days', onPress: selectScheduledDays },
+                      { id: 'calendar' as const, label: 'Every day', onPress: selectEveryDay },
+                    ] as const
+                  ).map((opt) => {
+                    const active = streakMode === opt.id;
+                    return (
+                      <Pressable
+                        key={opt.id}
+                        onPress={opt.onPress}
+                        style={[styles.modeChip, active && styles.modeChipActive]}>
+                        <Text style={[styles.modeText, active && styles.modeTextActive]}>{opt.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={styles.reminderHint}>
+                  {streakMode === 'scheduled'
+                    ? 'Only days on this habit’s schedule keep the streak.'
+                    : 'Any missed calendar day can break the streak.'}
+                </Text>
 
-              <Text style={styles.label}>Schedule</Text>
-              <View style={styles.weekdayRow}>
-                {WEEKDAY_OPTIONS.map(({ dow, label }) => {
-                  const active = daysOfWeek.includes(dow);
-                  return (
-                    <Pressable
-                      key={dow}
-                      onPress={() => toggleDay(dow)}
-                      style={[styles.weekdayChip, active && styles.weekdayChipActive]}>
-                      <Text style={[styles.weekdayText, active && styles.weekdayTextActive]}>
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                <Text style={styles.label}>Grace days</Text>
+                <View style={styles.presetRow}>
+                  {GRACE_PRESETS.map((n) => {
+                    const active = graceDays === n;
+                    return (
+                      <Pressable
+                        key={n}
+                        onPress={() => setGraceDays(n)}
+                        style={[styles.presetChip, active && styles.presetChipActive]}>
+                        <Text style={[styles.presetText, active && styles.presetTextActive]}>
+                          {n === 0 ? 'None' : String(n)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={styles.reminderHint}>Missed days allowed before the streak resets.</Text>
+              </>
+            ) : null}
+          </ScrollView>
 
-              <Text style={styles.label}>Streak counts</Text>
-              <View style={styles.modeRow}>
-                {(
-                  [
-                    { id: 'scheduled' as const, label: 'Scheduled days', onPress: selectScheduledDays },
-                    { id: 'calendar' as const, label: 'Every day', onPress: selectEveryDay },
-                  ] as const
-                ).map((opt) => {
-                  const active = streakMode === opt.id;
-                  return (
-                    <Pressable
-                      key={opt.id}
-                      onPress={opt.onPress}
-                      style={[styles.modeChip, active && styles.modeChipActive]}>
-                      <Text style={[styles.modeText, active && styles.modeTextActive]}>
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <Text style={styles.reminderHint}>
-                {streakMode === 'scheduled'
-                  ? 'Only days on this habit’s schedule keep the streak.'
-                  : 'Any missed calendar day can break the streak.'}
-              </Text>
+          <View style={styles.footer}>
+            <Button
+              label={habit ? 'Save changes' : 'Add habit'}
+              onPress={() => void save()}
+              disabled={!name.trim() || pending}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
-              <Text style={styles.label}>Grace days</Text>
-              <View style={styles.presetRow}>
-                {GRACE_PRESETS.map((n) => {
-                  const active = graceDays === n;
-                  return (
-                    <Pressable
-                      key={n}
-                      onPress={() => setGraceDays(n)}
-                      style={[styles.presetChip, active && styles.presetChipActive]}>
-                      <Text style={[styles.presetText, active && styles.presetTextActive]}>
-                        {n === 0 ? 'None' : String(n)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <Text style={styles.reminderHint}>Missed days allowed before the streak resets.</Text>
-            </>
-          ) : null}
-        </ScrollView>
-
-        <View style={styles.footer}>
-          <Button
-            label={habit ? 'Save changes' : 'Add habit'}
-            onPress={() => void save()}
-            disabled={!name.trim() || pending}
-          />
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      <HabitIconPickerSheet
+        visible={iconPickerOpen}
+        selected={icon}
+        onSelect={setIcon}
+        onClose={() => setIconPickerOpen(false)}
+      />
+    </>
   );
 }
 
@@ -462,6 +533,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     textTransform: 'uppercase',
   },
+  sectionTitle: {
+    ...typography.bodyMedium,
+    color: colors.text,
+    marginTop: spacing.sm,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
   input: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,
@@ -496,6 +577,20 @@ const styles = StyleSheet.create({
   categoryChipTextActive: {
     color: colors.accent,
   },
+  iconPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  iconPreviewText: {
+    flex: 1,
+    gap: 2,
+  },
+  browseLink: {
+    ...typography.data,
+    color: colors.accent,
+  },
   weekdayRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -522,24 +617,9 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontFamily: typography.bodyMedium.fontFamily,
   },
-  selectedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
   selectedLabel: {
-    ...typography.body,
+    ...typography.bodyMedium,
     color: colors.text,
-    flex: 1,
-  },
-  emptyIcons: {
-    ...typography.data,
-    color: colors.textMuted,
-    paddingVertical: spacing.sm,
-  },
-  moreIconsHint: {
-    ...typography.data,
-    color: colors.textMuted,
   },
   iconRow: {
     flexDirection: 'row',
@@ -560,23 +640,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
   },
-  advancedToggle: {
+  collapseHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: spacing.md,
-    alignSelf: 'flex-start',
-    marginTop: spacing.sm,
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
-  advancedText: {
-    ...typography.bodyMedium,
-    color: colors.accent,
+  collapseHeaderText: {
+    flex: 1,
+    gap: 2,
+  },
+  collapseSummary: {
+    ...typography.data,
+    color: colors.textMuted,
   },
   reminderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.sm,
+    marginTop: spacing.sm,
   },
   reminderTitle: {
     ...typography.bodyMedium,
