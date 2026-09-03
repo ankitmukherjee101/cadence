@@ -33,6 +33,7 @@ import {
   useUnarchiveHabit,
   useUnskipHabitForToday,
 } from '@/src/features/habits/hooks';
+import { LogHabitSheet } from '@/src/features/journal/components/LogHabitSheet';
 import { hapticSelection } from '@/src/shared/lib/haptics';
 import { exportAndShareCadenceBackup } from '@/src/shared/lib/backup';
 import { buildStartChoiceFromPref } from '@/src/shared/lib/quick-start';
@@ -98,6 +99,7 @@ export function HabitsScreen() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [sessionHabit, setSessionHabit] = useState<Habit | null>(null);
+  const [logHabit, setLogHabit] = useState<Habit | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
@@ -111,17 +113,6 @@ export function HabitsScreen() {
     () => new Set((logs ?? []).filter((l) => l.status === 'skipped').map((l) => l.habitId)),
     [logs],
   );
-
-  const dueHabits = useMemo(
-    () =>
-      (habits ?? []).filter((h) =>
-        isHabitRequiredOnDate(today, { streak: h.streak, schedule: h.schedule }),
-      ),
-    [habits, today],
-  );
-
-  const doneCount = dueHabits.filter((h) => completedIds.has(h.id)).length;
-  const totalCount = dueHabits.length;
 
   const sections = useMemo(() => groupHabitsByCategory(habits ?? []), [habits]);
 
@@ -291,13 +282,7 @@ export function HabitsScreen() {
       <FadeDown>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            {totalCount > 0 ? (
-              <Text style={styles.metric}>
-                {doneCount} of {totalCount} due today
-              </Text>
-            ) : (
-              <Text style={styles.metric}>Your practice, timed</Text>
-            )}
+            <Text style={styles.brand}>Habits</Text>
             <View style={styles.headerActions}>
               <Pressable
                 accessibilityRole="button"
@@ -377,6 +362,17 @@ export function HabitsScreen() {
         pending={startSession.isPending}
         onClose={() => setSessionHabit(null)}
         onStart={(choice) => void onConfirmStart(choice)}
+        onLogPast={() => {
+          if (!sessionHabit) return;
+          setLogHabit(sessionHabit);
+          setSessionHabit(null);
+        }}
+      />
+      <LogHabitSheet
+        visible={Boolean(logHabit)}
+        date={today}
+        initialHabitId={logHabit?.id}
+        onClose={() => setLogHabit(null)}
       />
 
       <ActionSheet
@@ -420,9 +416,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  metric: {
-    ...typography.data,
-    color: colors.textMuted,
+  brand: {
+    ...typography.brand,
+    color: colors.text,
     flex: 1,
   },
   headerActions: {

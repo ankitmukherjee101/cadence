@@ -20,7 +20,6 @@ import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import CalendarDays from 'lucide-react-native/icons/calendar-days';
 import Ellipsis from 'lucide-react-native/icons/ellipsis';
-import Timer from 'lucide-react-native/icons/timer';
 
 import type { DayEvent, LocalDate } from '@/src/domain';
 import {
@@ -30,7 +29,6 @@ import {
   sessionDurationMs,
   todayLocalDate,
 } from '@/src/domain';
-import { LogHabitSheet } from '@/src/features/journal/components/LogHabitSheet';
 import { useCreateJournalEntry, useDaySummary, useDeleteSession } from '@/src/features/habits/hooks';
 import { ActionSheet } from '@/src/shared/ui/ActionSheet';
 import { Button } from '@/src/shared/ui/Button';
@@ -355,7 +353,6 @@ export function JournalScreen() {
   const [date, setDate] = useState<LocalDate>(() => todayLocalDate());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
-  const [logOpen, setLogOpen] = useState(false);
   const [sessionNoteTarget, setSessionNoteTarget] = useState<SessionNoteTarget | null>(null);
   const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null);
   const { data: summary, isLoading } = useDaySummary(date);
@@ -399,24 +396,14 @@ export function JournalScreen() {
       <FadeDown>
         <View style={styles.header}>
           <Text style={styles.brand}>Journal</Text>
-          <View style={styles.headerActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Log habit for this day"
-              onPress={() => setLogOpen(true)}
-              style={styles.actionBtn}>
-              <Timer size={16} color={colors.accent} strokeWidth={1.75} />
-              <Text style={styles.actionLabel}>Log</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Write journal entry"
-              onPress={() => setNewOpen(true)}
-              style={styles.actionBtn}>
-              <PenLine size={16} color={colors.accent} strokeWidth={1.75} />
-              <Text style={styles.actionLabel}>Write</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Write journal entry"
+            onPress={() => setNewOpen(true)}
+            style={styles.actionBtn}>
+            <PenLine size={16} color={colors.accent} strokeWidth={1.75} />
+            <Text style={styles.actionLabel}>Write</Text>
+          </Pressable>
         </View>
       </FadeDown>
 
@@ -459,7 +446,7 @@ export function JournalScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>A blank page</Text>
             <Text style={styles.emptyBody}>
-              Log a habit, finish a session, or tap Write to leave a note for this day.
+              Finish a session or tap Write to leave a note for this day.
             </Text>
           </View>
         ) : (
@@ -493,7 +480,6 @@ export function JournalScreen() {
       ) : null}
 
       <NewEntryModal date={date} visible={newOpen} onClose={() => setNewOpen(false)} />
-      <LogHabitSheet visible={logOpen} date={date} onClose={() => setLogOpen(false)} />
       <SessionNoteModal
         target={sessionNoteTarget}
         onClose={() => setSessionNoteTarget(null)}
@@ -525,11 +511,6 @@ const styles = StyleSheet.create({
   brand: {
     ...typography.brand,
     color: paper.ink,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
   },
   actionBtn: {
     flexDirection: 'row',

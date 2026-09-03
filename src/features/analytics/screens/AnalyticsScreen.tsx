@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -72,6 +72,7 @@ function ContributionGraph({
 }: {
   dayMinutes: { date: string; totalMs: number }[];
 }) {
+  const scrollRef = useRef<ScrollView>(null);
   const today = todayLocalDate();
   const from = addDays(startOfWeekMonday(today), -51 * 7);
   const dates = eachLocalDate(from, today);
@@ -102,7 +103,13 @@ function ContributionGraph({
             </Text>
           ))}
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          onContentSizeChange={() => {
+            scrollRef.current?.scrollToEnd({ animated: false });
+          }}>
           <View style={styles.graph}>
             {weeks.map((week, wi) => (
               <View key={wi} style={styles.weekColHeat}>

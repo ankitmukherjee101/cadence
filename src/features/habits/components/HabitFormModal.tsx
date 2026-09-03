@@ -13,6 +13,7 @@ import {
   Alert,
   type ScrollView as ScrollViewType,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
 import ChevronUp from 'lucide-react-native/icons/chevron-up';
 
@@ -109,6 +110,7 @@ function hasCustomStreakSettings(days: number[], graceDays: number): boolean {
 }
 
 export function HabitFormModal({ visible, onClose, habit }: Props) {
+  const insets = useSafeAreaInsets();
   const createHabit = useCreateHabit();
   const updateHabit = useUpdateHabit();
   const { data: habits } = useHabits();
@@ -273,7 +275,7 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
     <>
       <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
         <KeyboardAvoidingView
-          style={styles.container}
+          style={[styles.container, { paddingTop: insets.top }]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.header}>
             <Text style={styles.title}>{habit ? 'Edit habit' : 'New habit'}</Text>
@@ -486,7 +488,7 @@ export function HabitFormModal({ visible, onClose, habit }: Props) {
             ) : null}
           </ScrollView>
 
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.container }]}>
             <Button
               label={habit ? 'Save changes' : 'Add habit'}
               onPress={() => void save()}
@@ -516,7 +518,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.container,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.md,
   },
   title: {
@@ -733,7 +735,8 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   footer: {
-    padding: spacing.container,
+    paddingHorizontal: spacing.container,
+    paddingTop: spacing.container,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

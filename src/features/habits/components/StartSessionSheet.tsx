@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
 import ChevronUp from 'lucide-react-native/icons/chevron-up';
 
@@ -41,6 +42,7 @@ type Props = {
   pending?: boolean;
   onClose: () => void;
   onStart: (choice: StartSessionChoice) => void;
+  onLogPast?: () => void;
 };
 
 function clampInt(value: string, min: number, max: number, fallback: number): number {
@@ -107,7 +109,15 @@ function Stepper({
   );
 }
 
-export function StartSessionSheet({ visible, habit, pending, onClose, onStart }: Props) {
+export function StartSessionSheet({
+  visible,
+  habit,
+  pending,
+  onClose,
+  onStart,
+  onLogPast,
+}: Props) {
+  const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<TimerMode>('stopwatch');
   const [pomodoro, setPomodoro] = useState<PomodoroConfig>(DEFAULT_POMODORO_CONFIG);
   const [customize, setCustomize] = useState(false);
@@ -155,7 +165,7 @@ export function StartSessionSheet({ visible, habit, pending, onClose, onStart }:
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             {habit ? <HabitIcon name={habit.icon} size={22} color={colors.accent} /> : null}
@@ -253,12 +263,25 @@ export function StartSessionSheet({ visible, habit, pending, onClose, onStart }:
           )}
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.container }]}>
           <Button
             label={mode === 'pomodoro' ? `Start ${pomodoro.focusMinutes}m focus` : 'Start stopwatch'}
             onPress={start}
             disabled={!habit || pending}
           />
+          {onLogPast ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Log past session"
+              onPress={() => {
+                void hapticSelection();
+                onLogPast();
+              }}
+              style={styles.logPastBtn}
+              hitSlop={8}>
+              <Text style={styles.logPastText}>Log past session</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -275,7 +298,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.container,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.md,
     gap: spacing.md,
   },
@@ -436,8 +459,18 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   footer: {
-    padding: spacing.container,
+    paddingHorizontal: spacing.container,
+    paddingTop: spacing.container,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    gap: spacing.sm,
+  },
+  logPastBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  logPastText: {
+    ...typography.bodyMedium,
+    color: colors.accent,
   },
 });

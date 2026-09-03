@@ -9,6 +9,7 @@ import {
   View,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Habit, LocalDate } from '@/src/domain';
 import { todayLocalDate } from '@/src/domain';
@@ -43,9 +44,12 @@ type Props = {
   visible: boolean;
   date: LocalDate;
   onClose: () => void;
+  /** When set, pre-selects that habit (e.g. opened from a habit’s timer sheet). */
+  initialHabitId?: string | null;
 };
 
-export function LogHabitSheet({ visible, date, onClose }: Props) {
+export function LogHabitSheet({ visible, date, onClose, initialHabitId }: Props) {
+  const insets = useSafeAreaInsets();
   const { data: habits } = useHabits();
   const logSession = useLogCompletedSession();
   const [habit, setHabit] = useState<Habit | null>(null);
@@ -55,11 +59,16 @@ export function LogHabitSheet({ visible, date, onClose }: Props) {
 
   useEffect(() => {
     if (!visible) return;
-    setHabit(null);
     setMinutes(25);
     setCustom('25');
     setEndedMinutes(defaultEndedMinutes(date));
-  }, [visible, date]);
+    setHabit(null);
+  }, [visible, date, initialHabitId]);
+
+  useEffect(() => {
+    if (!visible || !initialHabitId || !habits) return;
+    setHabit((current) => current ?? habits.find((h) => h.id === initialHabitId) ?? null);
+  }, [visible, initialHabitId, habits]);
 
   const applyMinutes = (n: number) => {
     const clamped = Math.min(480, Math.max(1, n));
@@ -95,9 +104,9 @@ export function LogHabitSheet({ visible, date, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>Log habit</Text>
+          <Text style={styles.title}>Log past session</Text>
           <Pressable onPress={onClose} hitSlop={12}>
             <Text style={styles.close}>Close</Text>
           </Pressable>
@@ -226,7 +235,7 @@ export function LogHabitSheet({ visible, date, onClose }: Props) {
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.container }]}>
           <Button
             label={
               habit
@@ -252,7 +261,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.container,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.md,
   },
   title: {
@@ -388,7 +397,8 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   footer: {
-    padding: spacing.container,
+    paddingHorizontal: spacing.container,
+    paddingTop: spacing.container,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
